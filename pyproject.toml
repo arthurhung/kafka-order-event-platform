@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "realtime-streaming-data-platform"
+version = "0.1.0"
+description = "Local Kafka event and application-log processing MVP"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "alembic>=1.16,<2",
+  "confluent-kafka>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "psycopg[binary]>=3.2,<4",
+  "python-json-logger>=3.3,<4",
+  "sqlalchemy>=2.0,<3",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.17,<2",
+  "pre-commit>=4.3,<5",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+  "types-python-dateutil>=2.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/streaming_platform"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --cov=streaming_platform --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["streaming_platform"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ANN", "D", "S", "RUF"]
+ignore = ["D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN", "D", "S101", "S106"]
+"migrations/**/*.py" = ["ANN", "D"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = "src"
+packages = ["streaming_platform"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["confluent_kafka.*"]
+ignore_missing_imports = true

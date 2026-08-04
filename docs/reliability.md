@@ -1,0 +1,56 @@
+# 可靠性設計說明
+
+## Phase 1 已完成的可靠性基礎
+
+Phase 1 讓本機環境的啟動與 schema 初始化具備可重複性：
+
+- Kafka 與 PostgreSQL 都有 health check。
+- Kafka UI 會等待 Kafka healthy 後才啟動。
+- `make up` 會等待本機 Kafka 與 PostgreSQL endpoint 可連線。
+- Kafka 關閉自動建立 topic，topic bootstrap 明確且可重複執行。
+- Alembic 管理 PostgreSQL schema，可安全重跑 migration。
+- 共用 logging 使用 JSON structured logging。
+- 設定由環境變數集中管理。
+- `.env` 不提交 Git，log 不應輸出密碼或完整連線字串。
+
+## 本機環境限制
+
+目前 Kafka 是 plaintext、單節點、replication factor 1 的開發環境。它沒有 Broker failure
+redundancy，因此 `acks=all` 不代表多副本耐久性。PostgreSQL 也使用本機開發用帳號與密碼。
+
+這些設定只用於本機開發、測試與面試展示，不是 production-ready。正式環境至少需要另外評估：
+
+- multi-broker Kafka 與適當的 replication factor；
+- TLS、authentication 與 authorization；
+- secrets management；
+- PostgreSQL 備份、高可用與連線管理；
+- monitoring、alerting 與容量規劃。
+
+上述 production 項目不是目前 MVP 的實作範圍。
+
+## 後續 Consumer 必須遵守的規則
+
+以下行為尚未在 Phase 1 實作，但後續 Consumer 必須依 `SPEC.md` 遵守：
+
+1. 關閉 Kafka automatic offset commit。
+2. 只有在下游處理成功後才能提交 offset。
+3. Idempotency record 與 business data 必須寫在同一個 PostgreSQL transaction。
+4. PostgreSQL transaction 失敗時不得提交 Kafka offset。
+5. 永久性 decoding 或 validation error 必須送入 DLQ。
+6. 只有 DLQ message produce 成功後，才能提交原始 message 的 offset。
+7. Poison message 不得永久阻塞 partition。
+8. Retry 必須有最大次數並採用有上限的 exponential backoff。
+9. 重複 `event_id` 不得造成重複 business record。
+10. Consumer 關閉時必須處理 SIGTERM 與 SIGINT，並 flush 尚未完成的工作。
+
+這些規則會在 Phase 3 與 Phase 4 透過 unit 與 integration tests 驗證，不能只依賴 mock Kafka 或
+mock PostgreSQL 宣稱完成。
+
+## Delivery 語意
+
+本專案的目標是透過 manual offset commit 與 PostgreSQL idempotency，達成可安全重試的
+at-least-once processing。Kafka offset 與 PostgreSQL transaction 之間沒有共同的 distributed
+transaction，因此不會宣稱跨 Kafka 與 PostgreSQL 的 exactly-once delivery。
+
+若 PostgreSQL 已成功 commit，但 Consumer 在提交 Kafka offset 前停止，message 可能再次被讀取；
+後續的 `processed_events` idempotency record 必須讓這類重送不會再次寫入 business data。
