@@ -75,3 +75,12 @@ redundancy。即使後續 Producer 設定 `acks=all`，在此環境中也只代�
 具備多副本耐久性。
 
 Multi-broker Kafka、跨 Broker replication 與 production security 都不在目前 MVP 範圍內。
+
+## Consumer Lag查詢
+
+Phase 5使用confluent-kafka Admin/Consumer APIs列出固定groups與source topics的每partition committed offset、
+log-end offset與lag，並同時提供human table和JSON。這避免依賴Kafka image內CLI表格格式，也讓benchmark直接
+重用typed結果。
+
+尚未建立的group或未commit的partition顯示null/not_available，不以DB row count或0取代。負lag視為Kafka
+狀態錯誤，不會clamp。Benchmark保存polling samples，因此`observed_max_lag`不是連續監控的絕對瞬間峰值。

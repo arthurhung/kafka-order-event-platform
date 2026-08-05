@@ -92,7 +92,17 @@ class GeneratorRunner:
             invalid_events_injected=int(snapshot["invalid_events_injected"]),
             stale_events_injected=int(snapshot["stale_events_injected"]),
             duplicate_events_injected=int(snapshot["duplicate_events_injected"]),
+            duplicate_events_delivered=int(snapshot["duplicate_events_delivered"]),
             invalid_events_by_type=dict(snapshot["invalid_events_by_type"]),
             seed=self._options.seed,
             stale_hours=self._options.stale_hours,
+            producer_delivery_latency_sample_count=int(
+                snapshot["producer_delivery_latency_sample_count"]
+            ),
+            producer_delivery_latency_average_ms=snapshot[
+                "producer_delivery_latency_average_ms"
+            ],
+            producer_delivery_latency_p95_ms=snapshot["producer_delivery_latency_p95_ms"],
+            producer_delivery_latency_p99_ms=snapshot["producer_delivery_latency_p99_ms"],
+            delivered_offset_ranges=snapshot["delivered_offset_ranges"],
         )

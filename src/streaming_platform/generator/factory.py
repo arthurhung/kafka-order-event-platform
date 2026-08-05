@@ -44,6 +44,7 @@ LOG_SERVICE_CANDIDATES = (
     "auth-api",
     "shipping-api",
 )
+DUPLICATE_HISTORY_LIMIT = 10_000
 
 
 class InjectionKind(StrEnum):
@@ -96,11 +97,12 @@ class EventFactory:
         self._random = random.Random(seed)  # noqa: S311 - reproducible test data, not security
         self._clock = clock or (lambda: datetime.now(UTC))
         self._history: dict[EventFamily, list[GeneratedRecord]] = {"order": [], "log": []}
+        self._history_cursor: dict[EventFamily, int] = {"order": 0, "log": 0}
 
     def next_record(self, options: GeneratorOptions) -> GeneratedRecord:
         """Generate the next record according to mix and injection rates."""
         family = self._choose_family(options.order_ratio)
-        event_type = self._choose_event_type(family)
+        event_type = self._choose_event_type(family, options.application_error_ratio)
         roll = self._random.random()
         if roll < options.invalid_rate:
             invalid_kind = self._random.choice(self.invalid_kinds_for(event_type))
@@ -112,7 +114,14 @@ class EventFactory:
             return self.create_duplicate(self._random.choice(self._history[family]))
 
         record = self.create_normal(event_type)
-        self._history[family].append(record)
+        if options.duplicate_rate > 0:
+            history = self._history[family]
+            if len(history) < DUPLICATE_HISTORY_LIMIT:
+                history.append(record)
+            else:
+                cursor = self._history_cursor[family]
+                history[cursor] = record
+                self._history_cursor[family] = (cursor + 1) % DUPLICATE_HISTORY_LIMIT
         return record
 
     def create_normal(self, event_type: EventType) -> GeneratedRecord:
@@ -264,7 +273,9 @@ class EventFactory:
     def _choose_family(self, order_ratio: float) -> EventFamily:
         return "order" if self._random.random() < order_ratio else "log"
 
-    def _choose_event_type(self, family: EventFamily) -> EventType:
+    def _choose_event_type(
+        self, family: EventFamily, application_error_ratio: float
+    ) -> EventType:
         if family == "order":
             return self._random.choice(
                 (
@@ -274,7 +285,11 @@ class EventFactory:
                     EventType.PAYMENT_FAILED,
                 )
             )
-        return self._random.choice((EventType.API_ACCESS_LOG, EventType.APPLICATION_ERROR_LOG))
+        return (
+            EventType.APPLICATION_ERROR_LOG
+            if self._random.random() < application_error_ratio
+            else EventType.API_ACCESS_LOG
+        )
 
     def _order_created_payload(self) -> OrderCreatedPayload:
         return OrderCreatedPayload(

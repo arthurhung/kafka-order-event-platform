@@ -1,19 +1,23 @@
 .PHONY: help up down restart logs topics list-topics describe-topics smoke-kafka migrate test \
 	test-unit test-integration test-e2e lint format typecheck clean order-consumer \
 	log-consumer \
-	generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark demo
+	generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark \
+	benchmark-smoke benchmark-standard benchmark-stress demo
 
 PYTHON ?= python
 KAFKA_CLI := /opt/kafka/bin
 GENERATOR := $(PYTHON) -m apps.event_generator
 
 help:
-	@echo "Phase 1-4 targets:"
+	@echo "Kafka streaming platform targets:"
 	@echo "  up / down / restart / logs"
 	@echo "  topics / list-topics / describe-topics / smoke-kafka"
 	@echo "  generate-smoke / generate-standard / generate-stress / inject-bad-events"
 	@echo "  order-consumer / migrate / lint / format / typecheck"
 	@echo "  log-consumer"
+	@echo "  consumer-lag (human table; add FORMAT=json for machine output)"
+	@echo "  benchmark / benchmark-smoke / benchmark-standard / benchmark-stress"
+	@echo "  demo (mixed events plus stop/restart and uncommitted replay)"
 	@echo "  test / test-unit / test-integration / test-e2e / clean"
 
 up:
@@ -93,6 +97,20 @@ order-consumer:
 log-consumer:
 	$(PYTHON) -m apps.log_consumer
 
-consumer-lag benchmark demo:
-	@echo "$@ is intentionally unavailable until its phase is implemented."
-	@exit 2
+consumer-lag:
+	$(PYTHON) scripts/consumer_lag.py --format $(or $(FORMAT),table)
+
+benchmark:
+	$(PYTHON) -m apps.benchmark
+
+benchmark-smoke:
+	$(PYTHON) -m apps.benchmark --profile smoke
+
+benchmark-standard:
+	$(PYTHON) -m apps.benchmark --profile standard
+
+benchmark-stress:
+	$(PYTHON) -m apps.benchmark --profile stress
+
+demo:
+	$(PYTHON) -m apps.demo

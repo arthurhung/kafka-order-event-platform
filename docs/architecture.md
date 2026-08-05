@@ -1,4 +1,4 @@
-# Phase 1–4 系統架構
+# Phase 1–5 系統架構
 
 Phase 1 建立三個本機基礎服務：
 
@@ -117,3 +117,24 @@ ecommerce.application-logs.raw.v1
 
 Late event 使用自己的 `event_time` 更新舊分鐘。Buffer、aggregation、repository、offset tracker 與
 polling orchestration 分層，Kafka loop 不包含 SQL。Phase 4 不加入 window/watermark framework。
+
+## Phase 5 Benchmark、Lag與Demo
+
+```text
+Benchmark / Demo Orchestrator
+├─ readiness、topic bootstrap、migration
+├─ managed Order/Log consumer subprocesses
+├─ existing Event Generator subprocess
+├─ real Kafka committed offsets + log-end offsets
+├─ run-scoped PostgreSQL queries
+├─ run-scoped DLQ observation
+└─ timestamped UTF-8 JSON report
+```
+
+Run identity不修改event或database schema。Producer delivery callback回傳的精確
+`topic/partition/offset` intervals是run attribution來源；`processed_events`、`valid_orders`與DLQ都保存可對應
+的source coordinates。`log_metrics_minute`是跨run additive table，所以report不把全表row count說成本次run
+新增row count。
+
+Phase 5 child processes在temporary directory輸出logs；normal cleanup先SIGTERM，只有bounded timeout後才
+SIGKILL。Infrastructure不由benchmark/demo自動刪除。

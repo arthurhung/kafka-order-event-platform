@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--duration-seconds", type=float, default=60.0)
     parser.add_argument("--order-ratio", type=float, default=0.2)
     parser.add_argument("--log-ratio", type=float, default=0.8)
+    parser.add_argument("--application-error-ratio", type=float, default=0.5)
     parser.add_argument("--invalid-rate", type=float, default=0.0)
     parser.add_argument("--stale-rate", type=float, default=0.0)
     parser.add_argument("--stale-hours", type=float, default=168.0)

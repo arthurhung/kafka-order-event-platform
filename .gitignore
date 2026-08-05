@@ -11,4 +11,13 @@ build/
 dist/
 htmlcov/
 reports/*.json
+reports/runs/*
+!reports/runs/benchmark-smoke-20260805T094857116796Z-39268c85-e8f3-485d-ae3c-087b407499ac.json
+!reports/runs/benchmark-standard-20260805T095019746379Z-456dade3-07c5-4994-b1a1-7f9ad3c37b96.json
+!reports/runs/benchmark-stress-20260805T100330400923Z-e27d4bce-7675-4208-bf10-da205e87e054.json
+!reports/runs/benchmark-stress-20260805T102059023444Z-8d8642fe-0e3e-4ee4-ad14-16c70ab91db4.json
+reports/*.log
+*.pid
+!reports/evidence/
+!reports/evidence/*.json
 !reports/.gitkeep

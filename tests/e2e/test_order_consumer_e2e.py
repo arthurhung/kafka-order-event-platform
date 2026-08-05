@@ -8,6 +8,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from time import monotonic, sleep
+from uuid import uuid4
 
 import pytest
 from confluent_kafka import Consumer, TopicPartition
@@ -20,10 +21,10 @@ from streaming_platform.database.models import ProcessedEvent, ValidOrder
 from streaming_platform.database.order_repository import OrderRepository
 from streaming_platform.database.session import create_database_engine, create_session_factory
 from streaming_platform.generator.factory import EventFactory, InvalidKind
-from streaming_platform.kafka.admin import ensure_topics
 from streaming_platform.kafka.consumer import OrderKafkaConsumer
 from streaming_platform.kafka.dlq import DlqProducer
 from streaming_platform.models import EventType
+from tests.integration.kafka_helpers import ensure_test_topics_ready
 from tests.integration.test_order_consumer import produce
 
 pytestmark = pytest.mark.e2e
@@ -66,7 +67,7 @@ def tail_dlq(settings: Settings) -> Consumer:
     consumer = Consumer(
         {
             "bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS,
-            "group.id": "phase-three-e2e-dlq-observer",
+            "group.id": f"phase-three-e2e-dlq-{uuid4()}",
             "enable.auto.commit": False,
         }
     )
@@ -80,14 +81,18 @@ def tail_dlq(settings: Settings) -> Consumer:
     return consumer
 
 
-def start_consumer() -> subprocess.Popen[str]:
+def start_consumer(settings: Settings) -> subprocess.Popen[str]:
     """Start the real order consumer application as a child process."""
+    environment = os.environ.copy()
+    environment["KAFKA_ORDER_TOPIC"] = settings.KAFKA_ORDER_TOPIC
+    environment["KAFKA_DLQ_TOPIC"] = settings.KAFKA_DLQ_TOPIC
+    environment["KAFKA_ORDER_CONSUMER_GROUP"] = settings.KAFKA_ORDER_CONSUMER_GROUP
     return subprocess.Popen(
         [sys.executable, "-m", "apps.order_consumer"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        env=os.environ.copy(),
+        env=environment,
     )
 
 
@@ -134,8 +139,16 @@ def test_order_consumer_end_to_end_and_uncommitted_restart() -> None:
     subprocess.run([sys.executable, "scripts/wait_for_services.py"], check=True, timeout=120)
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, timeout=60)
     get_settings.cache_clear()
-    settings = get_settings()
-    ensure_topics(settings)
+    suffix = uuid4().hex
+    settings = get_settings().model_copy(
+        update={
+            "KAFKA_ORDER_TOPIC": f"order-e2e.{suffix}.v1",
+            "KAFKA_LOG_TOPIC": f"log-e2e-unused.{suffix}.v1",
+            "KAFKA_DLQ_TOPIC": f"dlq-order-e2e.{suffix}.v1",
+            "KAFKA_ORDER_CONSUMER_GROUP": f"order-e2e-{suffix}",
+        }
+    )
+    ensure_test_topics_ready(settings)
     reset_group_to_tail(settings)
     engine = create_database_engine(settings)
     with engine.begin() as connection:
@@ -146,9 +159,9 @@ def test_order_consumer_end_to_end_and_uncommitted_restart() -> None:
     factory = EventFactory(settings, seed=401)
     normal = factory.create_normal(EventType.ORDER_CREATED)
     invalid = factory.create_invalid(EventType.ORDER_PAID, InvalidKind.NEGATIVE_AMOUNT)
-    process = start_consumer()
+    invalid_event_id = json.loads(invalid.value)["event_id"]
+    process = start_consumer(settings)
     try:
-        sleep(1)
         produce(settings, normal.key, normal.value)
         produce(settings, normal.key, normal.value)
         invalid_position = produce(settings, invalid.key, invalid.value)
@@ -160,7 +173,14 @@ def test_order_consumer_end_to_end_and_uncommitted_restart() -> None:
             message = dlq_observer.poll(0.25)
             if message is not None and message.error() is None:
                 candidate = json.loads(message.value())
-                if candidate["original_offset"] == invalid_position.offset:
+                payload = candidate.get("original_payload")
+                if (
+                    candidate.get("original_topic") == invalid_position.topic
+                    and candidate.get("original_partition") == invalid_position.partition
+                    and candidate.get("original_offset") == invalid_position.offset
+                    and isinstance(payload, dict)
+                    and payload.get("event_id") == invalid_event_id
+                ):
                     dlq_body = candidate
         assert dlq_body is not None
         assert dlq_body["error_type"] == "ValidationError"
@@ -200,7 +220,7 @@ def test_order_consumer_end_to_end_and_uncommitted_restart() -> None:
     assert table_counts(engine) == (2, 2)
     assert committed_offset(settings, pending_position) == pending_position.offset
 
-    restarted = start_consumer()
+    restarted = start_consumer(settings)
     try:
         wait_until(
             lambda: committed_offset(settings, pending_position) == pending_position.offset + 1,

@@ -84,3 +84,19 @@ Graceful SIGINT/SIGTERM 會停止 polling、flush buffer、提交安全 offsets�
 
 DLQ produce 與 source offset commit 不是共同 transaction，因此 commit failure 後 DLQ record 可能重送。
 本設計仍只宣稱 at-least-once delivery 加 idempotent database processing。
+
+## Phase 5 Failure Recovery與量測邊界
+
+`make demo`真實停止consumer processes、在停止期間繼續produce、觀察Kafka lag上升，再啟動replacement
+processes。Recovery time使用monotonic clock，從replacement啟動前開始，到本次所有source offsets完成commit；
+固定poll interval與timeout都寫入report。
+
+Uncommitted replay使用真實Kafka/PostgreSQL但刻意省略一次Kafka commit，重現DB成功與offset commit間的
+window。這是deterministic simulation；不是Kafka、PostgreSQL或network infrastructure failure。
+
+Benchmark以實際committed offsets判斷durable source completion。Observed max lag只代表polling samples中可見
+的最大值。Producer delivery callback latency只代表broker acknowledgement；目前沒有把它描述成end-to-end
+latency。無法可靠取得的end-to-end與Docker Desktop UI limit使用null/not_implemented/not_available。
+
+每次run採唯一ID與source offset intervals，不reset固定consumer groups、不清使用者資料。Pre-existing backlog
+若未在timeout內歸零，run明確失敗而不是把歷史消息混入結果。

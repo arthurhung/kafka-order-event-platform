@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "run_id": "20260805T100330400923Z-e27d4bce-7675-4208-bf10-da205e87e054",
+  "profile": "stress",
+  "started_at": "2026-08-05T10:03:30.401008Z",
+  "finished_at": "2026-08-05T10:10:36.571395Z",
+  "status": "failed",
+  "failure_stage": "durable_processing",
+  "exit_code": 1,
+  "environment": {
+    "os": "Darwin",
+    "os_release": "24.6.0",
+    "architecture": "x86_64",
+    "cpu": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+    "logical_cpu_count": 16,
+    "memory_bytes": 68719476736,
+    "python_version": "3.14.6",
+    "docker": {
+      "status": "measured",
+      "version": "29.6.1",
+      "operating_system": "Docker Desktop",
+      "logical_cpu_count": 16,
+      "memory_bytes": 16763568128,
+      "desktop_configured_resource_limits": "not_available"
+    },
+    "kafka_image": "apache/kafka:4.1.0",
+    "postgres_image": "postgres:16-alpine"
+  },
+  "configuration": {
+    "profile_target": {
+      "target_eps": 5000.0,
+      "duration_seconds": 300.0
+    },
+    "effective": {
+      "target_eps": 5000.0,
+      "duration_seconds": 300.0,
+      "order_ratio": 0.2,
+      "log_ratio": 0.8,
+      "application_error_ratio": 0.0,
+      "invalid_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "seed": 1571811592,
+      "seed_source": "run_id",
+      "producer_timeout_seconds": 420.0,
+      "drain_timeout_seconds": 120.0
+    },
+    "adjusted_from_profile": false,
+    "topic_partitions": {
+      "ecommerce.orders.raw.v1": 6,
+      "ecommerce.application-logs.raw.v1": 6,
+      "ecommerce.dlq.v1": 3
+    }
+  },
+  "producer": {
+    "attempted": 1500000,
+    "delivered": 1500000,
+    "failed": 0,
+    "actual_eps": 4983.86183076675,
+    "elapsed_seconds": 300.971425560012,
+    "order_events_attempted": 299403,
+    "log_events_attempted": 1200597,
+    "invalid_events_injected": 0,
+    "duplicate_events_attempted": 0,
+    "duplicate_events_delivered": 0,
+    "delivery_latency_sample_count": 1500000,
+    "delivery_latency_average_ms": 4.644821677583968,
+    "delivery_latency_p95_ms": 6.6715210559777915,
+    "delivery_latency_p99_ms": 7.8483400284312665
+  },
+  "consumer": {},
+  "latency": {
+    "producer_delivery_latency_ms": {
+      "status": "measured",
+      "definition": "monotonic time from first local produce attempt to successful Kafka delivery callback",
+      "unit": "milliseconds",
+      "sample_count": 1500000,
+      "average_ms": 4.644821677583968,
+      "p95_ms": 6.6715210559777915,
+      "p99_ms": 7.8483400284312665,
+      "percentile_method": "nearest_rank",
+      "reason": null
+    },
+    "end_to_end_latency_ms": {
+      "status": "not_implemented",
+      "definition": "event creation through durable downstream completion",
+      "unit": "milliseconds",
+      "sample_count": 0,
+      "average_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "percentile_method": "nearest_rank",
+      "reason": "current schemas do not expose one reliable endpoint for all outcomes"
+    }
+  },
+  "runtime": {
+    "total_runtime_seconds": 426.4923914480023,
+    "workload_runtime_seconds": null,
+    "definition": "generation start through durable source-offset completion"
+  },
+  "database": {},
+  "run_scope": {
+    "method": "exact delivered Kafka topic/partition/offset intervals",
+    "database_counts": "current_run",
+    "delivered_offset_ranges": [
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 0,
+        "start_offset": 59462,
+        "end_offset_exclusive": 326498
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 1,
+        "start_offset": 29793,
+        "end_offset_exclusive": 162841
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 3,
+        "start_offset": 29923,
+        "end_offset_exclusive": 163027
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 4,
+        "start_offset": 99533,
+        "end_offset_exclusive": 499572
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 5,
+        "start_offset": 59173,
+        "end_offset_exclusive": 326543
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 0,
+        "start_offset": 11740,
+        "end_offset_exclusive": 61915
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 1,
+        "start_offset": 11879,
+        "end_offset_exclusive": 61640
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 2,
+        "start_offset": 11700,
+        "end_offset_exclusive": 61585
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 3,
+        "start_offset": 11903,
+        "end_offset_exclusive": 61656
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 4,
+        "start_offset": 11855,
+        "end_offset_exclusive": 61818
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 5,
+        "start_offset": 11781,
+        "end_offset_exclusive": 61647
+      }
+    ]
+  },
+  "errors": [
+    "TimeoutError: durable processing timed out at 1209387/1500000 records"
+  ],
+  "limitations": [
+    "producer_delivery_latency_ms is not end-to-end latency",
+    "end_to_end_latency_ms is not implemented for the current schemas",
+    "observed max lag is limited by the configured polling interval",
+    "local single-node results do not represent production capacity"
+  ],
+  "artifacts": {
+    "report_path": "reports/runs/benchmark-stress-20260805T100330400923Z-e27d4bce-7675-4208-bf10-da205e87e054.json"
+  }
+}

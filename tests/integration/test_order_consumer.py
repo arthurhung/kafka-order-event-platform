@@ -18,9 +18,9 @@ from streaming_platform.database.order_repository import OrderRepository
 from streaming_platform.database.session import create_database_engine, create_session_factory
 from streaming_platform.generator.factory import EventFactory, InvalidKind
 from streaming_platform.kafka.admin import ensure_topics
-from streaming_platform.kafka.consumer import OrderKafkaConsumer
 from streaming_platform.kafka.dlq import DlqProducer
 from streaming_platform.models import EventType
+from tests.integration.kafka_helpers import ManuallyAssignedConsumer
 
 pytestmark = pytest.mark.integration
 
@@ -99,7 +99,7 @@ def committed_offset(settings: Settings, position: TopicPartition) -> int:
         consumer.close()
 
 
-def assigned_consumer(settings: Settings, position: TopicPartition) -> OrderKafkaConsumer:
+def assigned_consumer(settings: Settings, position: TopicPartition) -> ManuallyAssignedConsumer:
     client = Consumer(
         {
             "bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -108,12 +108,11 @@ def assigned_consumer(settings: Settings, position: TopicPartition) -> OrderKafk
             "enable.auto.offset.store": False,
         }
     )
-    wrapped = OrderKafkaConsumer(settings, consumer=client)
     client.assign([position])
-    return wrapped
+    return ManuallyAssignedConsumer(client)
 
 
-def next_message(consumer: OrderKafkaConsumer):
+def next_message(consumer: ManuallyAssignedConsumer):
     deadline = monotonic() + 10
     while monotonic() < deadline:
         message = consumer.poll(0.25)
@@ -214,6 +213,7 @@ def test_invalid_event_reaches_real_dlq_before_source_offset_advances(settings, 
     record = EventFactory(settings, seed=303).create_invalid(
         EventType.ORDER_CREATED, InvalidKind.NEGATIVE_AMOUNT
     )
+    event_id = json.loads(record.value)["event_id"]
     position = produce(settings, record.key, record.value)
     set_group_offset(settings, position)
     consumer = assigned_consumer(settings, position)
@@ -229,7 +229,16 @@ def test_invalid_event_reaches_real_dlq_before_source_offset_advances(settings, 
         while dlq_message is None and monotonic() < deadline:
             candidate = dlq_tail.poll(0.25)
             if candidate is not None and candidate.error() is None:
-                dlq_message = candidate
+                body = json.loads(candidate.value())
+                payload = body.get("original_payload")
+                if (
+                    body.get("original_topic") == position.topic
+                    and body.get("original_partition") == position.partition
+                    and body.get("original_offset") == position.offset
+                    and isinstance(payload, dict)
+                    and payload.get("event_id") == event_id
+                ):
+                    dlq_message = candidate
     finally:
         dlq.flush()
         consumer.close()

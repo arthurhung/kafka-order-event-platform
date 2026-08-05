@@ -72,7 +72,15 @@ class TrackedKafkaProducer:
                     },
                 )
                 return
-            self._tracker.delivered(token)
+            topic = getattr(message, "topic", lambda: None)()
+            partition = getattr(message, "partition", lambda: None)()
+            offset = getattr(message, "offset", lambda: None)()
+            self._tracker.delivered(
+                token,
+                topic=topic,
+                partition=partition,
+                offset=offset,
+            )
 
         for attempt in range(len(QUEUE_FULL_BACKOFF_SECONDS) + 1):
             try:

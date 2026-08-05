@@ -1,0 +1,326 @@
+{
+  "schema_version": "1.0",
+  "run_id": "20260805T102059023444Z-8d8642fe-0e3e-4ee4-ad14-16c70ab91db4",
+  "profile": "stress",
+  "started_at": "2026-08-05T10:20:59.023505Z",
+  "finished_at": "2026-08-05T10:23:27.015522Z",
+  "status": "passed",
+  "failure_stage": null,
+  "exit_code": 0,
+  "environment": {
+    "os": "Darwin",
+    "os_release": "24.6.0",
+    "architecture": "x86_64",
+    "cpu": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+    "logical_cpu_count": 16,
+    "memory_bytes": 68719476736,
+    "python_version": "3.14.6",
+    "docker": {
+      "status": "measured",
+      "version": "29.6.1",
+      "operating_system": "Docker Desktop",
+      "logical_cpu_count": 16,
+      "memory_bytes": 16763568128,
+      "desktop_configured_resource_limits": "not_available"
+    },
+    "kafka_image": "apache/kafka:4.1.0",
+    "postgres_image": "postgres:16-alpine"
+  },
+  "configuration": {
+    "profile_target": {
+      "target_eps": 5000.0,
+      "duration_seconds": 300.0
+    },
+    "effective": {
+      "target_eps": 1000.0,
+      "duration_seconds": 60.0,
+      "order_ratio": 0.2,
+      "log_ratio": 0.8,
+      "application_error_ratio": 0.0,
+      "invalid_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "seed": 678954522,
+      "seed_source": "run_id",
+      "producer_timeout_seconds": 360.0,
+      "drain_timeout_seconds": 300.0
+    },
+    "adjusted_from_profile": true,
+    "topic_partitions": {
+      "ecommerce.orders.raw.v1": 6,
+      "ecommerce.application-logs.raw.v1": 6,
+      "ecommerce.dlq.v1": 3
+    }
+  },
+  "producer": {
+    "attempted": 60000,
+    "delivered": 60000,
+    "failed": 0,
+    "actual_eps": 999.6655154667806,
+    "elapsed_seconds": 60.02007578703342,
+    "order_events_attempted": 12143,
+    "log_events_attempted": 47857,
+    "invalid_events_injected": 0,
+    "duplicate_events_attempted": 0,
+    "duplicate_events_delivered": 0,
+    "delivery_latency_sample_count": 60000,
+    "delivery_latency_average_ms": 5.369932084204629,
+    "delivery_latency_p95_ms": 7.149552984628826,
+    "delivery_latency_p99_ms": 8.066225971560925
+  },
+  "consumer": {
+    "consumed_count": 60000,
+    "duplicate_count": 0,
+    "dlq_count": 0,
+    "observed_max_lag": 7886,
+    "final_lag": 0,
+    "lag_poll_interval_seconds": 0.5,
+    "lag_sample_count": 207,
+    "final_groups": [
+      {
+        "consumer_group": "order-processing-group-v1",
+        "topic": "ecommerce.orders.raw.v1",
+        "status": "measured",
+        "rows": [
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 0,
+            "current_offset": 63917,
+            "log_end_offset": 63917,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 1,
+            "current_offset": 63643,
+            "log_end_offset": 63643,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 2,
+            "current_offset": 63593,
+            "log_end_offset": 63593,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 3,
+            "current_offset": 63715,
+            "log_end_offset": 63715,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 4,
+            "current_offset": 63852,
+            "log_end_offset": 63852,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "order-processing-group-v1",
+            "topic": "ecommerce.orders.raw.v1",
+            "partition": 5,
+            "current_offset": 63684,
+            "log_end_offset": 63684,
+            "lag": 0,
+            "status": "measured"
+          }
+        ],
+        "total_lag": 0
+      },
+      {
+        "consumer_group": "application-log-processing-group-v1",
+        "topic": "ecommerce.application-logs.raw.v1",
+        "status": "measured",
+        "rows": [
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 0,
+            "current_offset": 337178,
+            "log_end_offset": 337178,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 1,
+            "current_offset": 168141,
+            "log_end_offset": 168141,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 2,
+            "current_offset": 1,
+            "log_end_offset": 1,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 3,
+            "current_offset": 168295,
+            "log_end_offset": 168295,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 4,
+            "current_offset": 515412,
+            "log_end_offset": 515412,
+            "lag": 0,
+            "status": "measured"
+          },
+          {
+            "consumer_group": "application-log-processing-group-v1",
+            "topic": "ecommerce.application-logs.raw.v1",
+            "partition": 5,
+            "current_offset": 337312,
+            "log_end_offset": 337312,
+            "lag": 0,
+            "status": "measured"
+          }
+        ],
+        "total_lag": 0
+      }
+    ],
+    "restart_recovery_time_seconds": null,
+    "restart_recovery_status": "not_measured_by_benchmark"
+  },
+  "latency": {
+    "producer_delivery_latency_ms": {
+      "status": "measured",
+      "definition": "monotonic time from first local produce attempt to successful Kafka delivery callback",
+      "unit": "milliseconds",
+      "sample_count": 60000,
+      "average_ms": 5.369932084204629,
+      "p95_ms": 7.149552984628826,
+      "p99_ms": 8.066225971560925,
+      "percentile_method": "nearest_rank",
+      "reason": null
+    },
+    "end_to_end_latency_ms": {
+      "status": "not_implemented",
+      "definition": "event creation through durable downstream completion",
+      "unit": "milliseconds",
+      "sample_count": 0,
+      "average_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "percentile_method": "nearest_rank",
+      "reason": "current schemas do not expose one reliable endpoint for all outcomes"
+    }
+  },
+  "runtime": {
+    "total_runtime_seconds": 148.2138517239946,
+    "workload_runtime_seconds": 142.72868379496504,
+    "definition": "generation start through durable source-offset completion"
+  },
+  "database": {
+    "scope": "current_run_source_coordinates",
+    "processed_events_count": 60000,
+    "valid_orders_count": 12143,
+    "log_processed_events_count": 47857,
+    "log_metric_rows_total": 530,
+    "log_metric_rows_total_scope": "whole_table"
+  },
+  "run_scope": {
+    "method": "exact delivered Kafka topic/partition/offset intervals",
+    "database_counts": "current_run",
+    "delivered_offset_ranges": [
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 0,
+        "start_offset": 326498,
+        "end_offset_exclusive": 337178
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 1,
+        "start_offset": 162841,
+        "end_offset_exclusive": 168141
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 3,
+        "start_offset": 163027,
+        "end_offset_exclusive": 168295
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 4,
+        "start_offset": 499572,
+        "end_offset_exclusive": 515412
+      },
+      {
+        "topic": "ecommerce.application-logs.raw.v1",
+        "partition": 5,
+        "start_offset": 326543,
+        "end_offset_exclusive": 337312
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 0,
+        "start_offset": 61915,
+        "end_offset_exclusive": 63917
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 1,
+        "start_offset": 61640,
+        "end_offset_exclusive": 63643
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 2,
+        "start_offset": 61585,
+        "end_offset_exclusive": 63593
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 3,
+        "start_offset": 61656,
+        "end_offset_exclusive": 63715
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 4,
+        "start_offset": 61818,
+        "end_offset_exclusive": 63852
+      },
+      {
+        "topic": "ecommerce.orders.raw.v1",
+        "partition": 5,
+        "start_offset": 61647,
+        "end_offset_exclusive": 63684
+      }
+    ]
+  },
+  "errors": [],
+  "limitations": [
+    "producer_delivery_latency_ms is not end-to-end latency",
+    "end_to_end_latency_ms is not implemented for the current schemas",
+    "observed max lag is limited by the configured polling interval",
+    "local single-node results do not represent production capacity"
+  ],
+  "artifacts": {
+    "report_path": "reports/runs/benchmark-stress-20260805T102059023444Z-8d8642fe-0e3e-4ee4-ad14-16c70ab91db4.json"
+  }
+}

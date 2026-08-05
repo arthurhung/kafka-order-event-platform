@@ -21,10 +21,10 @@ from streaming_platform.database.log_repository import LogMetricRepository
 from streaming_platform.database.models import LogMetricMinute, ProcessedEvent
 from streaming_platform.database.session import create_database_engine, create_session_factory
 from streaming_platform.kafka.admin import ensure_topics
-from streaming_platform.kafka.consumer import LogKafkaConsumer
 from streaming_platform.kafka.dlq import DlqProducer
 from streaming_platform.metrics.log_aggregation import KafkaCoordinate, LogAggregationBuffer
 from streaming_platform.models import ApiAccessLogEvent, ApiAccessLogPayload
+from tests.integration.kafka_helpers import ManuallyAssignedConsumer
 
 pytestmark = pytest.mark.integration
 
@@ -101,7 +101,7 @@ def produce(
 
 def assigned_consumer(
     settings: Settings, positions: list[TopicPartition]
-) -> tuple[LogKafkaConsumer, Consumer]:
+) -> tuple[ManuallyAssignedConsumer, Consumer]:
     earliest: dict[int, int] = {}
     for position in positions:
         earliest[position.partition] = min(
@@ -121,12 +121,11 @@ def assigned_consumer(
     )
     raw.assign(assignments)
     raw.commit(offsets=assignments, asynchronous=False)
-    wrapped = LogKafkaConsumer(settings, consumer=raw)
-    raw.assign(assignments)
+    wrapped = ManuallyAssignedConsumer(raw)
     return wrapped, raw
 
 
-def read_messages(consumer: LogKafkaConsumer, count: int) -> list:
+def read_messages(consumer: ManuallyAssignedConsumer, count: int) -> list:
     messages = []
     deadline = monotonic() + 10
     while len(messages) < count and monotonic() < deadline:
@@ -270,12 +269,26 @@ def tail_dlq(settings: Settings) -> Consumer:
     return observer
 
 
+def is_expected_dlq_message(
+    candidate: dict, position: TopicPartition, event_id: str
+) -> bool:
+    payload = candidate.get("original_payload")
+    return (
+        candidate.get("original_topic") == position.topic
+        and candidate.get("original_partition") == position.partition
+        and candidate.get("original_offset") == position.offset
+        and isinstance(payload, dict)
+        and payload.get("event_id") == event_id
+    )
+
+
 def test_invalid_after_buffered_valid_does_not_jump_contiguous_offset(settings, engine) -> None:
     ensure_topics(settings)
     valid = event()
     valid_position = produce(settings, valid.model_dump_json().encode(), partition=0)
     invalid_value = json.loads(valid.model_dump_json())
     invalid_value["event_id"] = str(uuid4())
+    invalid_event_id = invalid_value["event_id"]
     invalid_value["payload"]["endpoint"] = "invalid"
     invalid_position = produce(settings, json.dumps(invalid_value).encode(), partition=0)
     observer = tail_dlq(settings)
@@ -295,7 +308,9 @@ def test_invalid_after_buffered_valid_does_not_jump_contiguous_offset(settings, 
             message = observer.poll(0.25)
             if message is not None and message.error() is None:
                 candidate = json.loads(message.value())
-                if candidate["original_offset"] == invalid_position.offset:
+                if is_expected_dlq_message(
+                    candidate, invalid_position, invalid_event_id
+                ):
                     dlq_body = candidate
         assert dlq_body is not None
         flush.flush()

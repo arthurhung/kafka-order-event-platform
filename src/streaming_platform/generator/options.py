@@ -17,6 +17,7 @@ class GeneratorOptions(BaseModel):
     duration_seconds: Annotated[float, Field(gt=0)]
     order_ratio: Rate
     log_ratio: Rate
+    application_error_ratio: Rate = 0.5
     invalid_rate: Rate = 0.0
     stale_rate: Rate = 0.0
     stale_hours: Annotated[float, Field(gt=0)] = 168.0

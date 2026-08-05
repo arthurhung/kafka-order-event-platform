@@ -17,8 +17,8 @@ from sqlalchemy import delete, select
 from streaming_platform.config import Settings, get_settings
 from streaming_platform.database.models import LogMetricMinute, ProcessedEvent
 from streaming_platform.database.session import create_database_engine, create_session_factory
-from streaming_platform.kafka.admin import ensure_topics
 from streaming_platform.models import ApiAccessLogEvent, ApiAccessLogPayload
+from tests.integration.kafka_helpers import ensure_test_topics_ready
 from tests.integration.test_log_consumer import produce, tail_dlq
 
 pytestmark = pytest.mark.e2e
@@ -77,9 +77,12 @@ def access_event(
     )
 
 
-def start_consumer(flush_interval: float) -> subprocess.Popen[str]:
+def start_consumer(settings: Settings, flush_interval: float) -> subprocess.Popen[str]:
     environment = os.environ.copy()
     environment["LOG_CONSUMER_FLUSH_INTERVAL_SECONDS"] = str(flush_interval)
+    environment["KAFKA_LOG_TOPIC"] = settings.KAFKA_LOG_TOPIC
+    environment["KAFKA_DLQ_TOPIC"] = settings.KAFKA_DLQ_TOPIC
+    environment["KAFKA_LOG_CONSUMER_GROUP"] = settings.KAFKA_LOG_CONSUMER_GROUP
     return subprocess.Popen(
         [sys.executable, "-m", "apps.log_consumer"],
         stdout=subprocess.PIPE,
@@ -124,8 +127,16 @@ def test_log_consumer_shutdown_flush_restart_and_continued_processing() -> None:
     subprocess.run([sys.executable, "scripts/wait_for_services.py"], check=True, timeout=120)
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, timeout=60)
     get_settings.cache_clear()
-    settings = get_settings()
-    ensure_topics(settings)
+    suffix = uuid4().hex
+    settings = get_settings().model_copy(
+        update={
+            "KAFKA_ORDER_TOPIC": f"order-e2e-unused.{suffix}.v1",
+            "KAFKA_LOG_TOPIC": f"log-e2e.{suffix}.v1",
+            "KAFKA_DLQ_TOPIC": f"dlq-log-e2e.{suffix}.v1",
+            "KAFKA_LOG_CONSUMER_GROUP": f"log-e2e-{suffix}",
+        }
+    )
+    ensure_test_topics_ready(settings)
     reset_group_to_tail(settings)
     engine = create_database_engine(settings)
     with engine.begin() as connection:
@@ -143,12 +154,12 @@ def test_log_consumer_shutdown_flush_restart_and_continued_processing() -> None:
     late = access_event(event_time=late_minute, response_ms=5)
     invalid = json.loads(normal.model_dump_json())
     invalid["event_id"] = str(uuid4())
+    invalid_event_id = invalid["event_id"]
     invalid["payload"]["status_code"] = 700
     dlq_observer = tail_dlq(settings)
-    process = start_consumer(flush_interval=60)
+    process = start_consumer(settings, flush_interval=60)
     positions = []
     try:
-        sleep(1)
         for value in (
             normal.model_dump_json().encode(),
             server_error.model_dump_json().encode(),
@@ -164,7 +175,14 @@ def test_log_consumer_shutdown_flush_restart_and_continued_processing() -> None:
             message = dlq_observer.poll(0.25)
             if message is not None and message.error() is None:
                 candidate = json.loads(message.value())
-                if candidate["original_offset"] == positions[-1].offset:
+                payload = candidate.get("original_payload")
+                if (
+                    candidate.get("original_topic") == positions[-1].topic
+                    and candidate.get("original_partition") == positions[-1].partition
+                    and candidate.get("original_offset") == positions[-1].offset
+                    and isinstance(payload, dict)
+                    and payload.get("event_id") == invalid_event_id
+                ):
                     dlq_body = candidate
         assert dlq_body is not None
         assert rows(engine) == []
@@ -185,9 +203,8 @@ def test_log_consumer_shutdown_flush_restart_and_continued_processing() -> None:
     assert committed_offset(settings, positions[-1]) == positions[-1].offset + 1
 
     follow_up = access_event(event_time=current_minute, status=404, response_ms=20)
-    restarted = start_consumer(flush_interval=0.5)
+    restarted = start_consumer(settings, flush_interval=0.5)
     try:
-        sleep(1)
         follow_up_position = produce(settings, follow_up.model_dump_json().encode(), partition=0)
         wait_until(
             lambda: next(row for row in rows(engine) if row.metric_minute.hour == 10).request_count
