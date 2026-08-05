@@ -67,3 +67,20 @@ transaction，因此不會宣稱跨 Kafka 與 PostgreSQL 的 exactly-once delive
 
 若 PostgreSQL 已成功 commit，但 Consumer 在提交 Kafka offset 前停止，message 可能再次被讀取；
 後續的 `processed_events` idempotency record 必須讓這類重送不會再次寫入 business data。
+
+## Phase 4 Log Aggregation Reliability
+
+合法 access log 先進入以 `event_id` 去重的記憶體 buffer。Snapshot/swap 讓 flush 期間的新事件留在新
+active buffer；DB failure 時舊 snapshot 會合併回去。每次 transaction 先插入 `processed_events` 並
+取得真正的新 event IDs，只對這些事件執行 additive minute upsert，因此 DB commit 成功但 Kafka
+commit 失敗後的 replay 不會重複累加。
+
+Offset tracker 以 partition 為單位保存 pending/completed 狀態。DB 或 DLQ failure 不會將 offset 標記
+完成；只有連續完成的最高位置可同步提交。Retry exhausted、revoke flush failure 或 assignment lost
+會使 consumer 明確停止，不會假裝成功。
+
+Graceful SIGINT/SIGTERM 會停止 polling、flush buffer、提交安全 offsets，再關閉 Kafka 與 DB resources。
+若 shutdown flush 失敗，offset 保持未提交，process 非零結束，等待 restart replay。
+
+DLQ produce 與 source offset commit 不是共同 transaction，因此 commit failure 後 DLQ record 可能重送。
+本設計仍只宣稱 at-least-once delivery 加 idempotent database processing。

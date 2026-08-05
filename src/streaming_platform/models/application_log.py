@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
 
 from streaming_platform.models.event import BaseEventEnvelope, EventType, NonEmptyString
 
@@ -60,3 +60,6 @@ class ApplicationErrorLogEvent(BaseEventEnvelope[ApplicationErrorLogPayload]):
     """An application error log event."""
 
     event_type: Literal[EventType.APPLICATION_ERROR_LOG] = EventType.APPLICATION_ERROR_LOG
+
+
+API_ACCESS_LOG_ADAPTER: TypeAdapter[ApiAccessLogEvent] = TypeAdapter(ApiAccessLogEvent)

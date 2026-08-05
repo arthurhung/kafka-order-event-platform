@@ -1,10 +1,11 @@
 # Kafka 即時資料處理平台
 
-這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前完成 Phase 1–3：本機 Kafka／
+這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前完成 Phase 1–4：本機 Kafka／
 PostgreSQL 基礎環境、Pydantic 事件模型、可調整流量的 Event Generator，以及具備 manual offset
-commit、PostgreSQL transaction、idempotency、bounded retry 與 DLQ 的 Order Consumer。
+commit、PostgreSQL transaction、idempotency、bounded retry 與 DLQ 的 Order Consumer 和每分鐘
+Application Log 聚合。
 
-Application Log Consumer、分鐘聚合與 benchmark 尚未實作，會依照 `SPEC.md` 在後續階段加入。
+Benchmark、consumer lag 與完整 demo 尚未實作，會依照 `SPEC.md` 在 Phase 5 加入。
 
 ## 前置需求
 
@@ -167,8 +168,8 @@ make typecheck
 make test
 ```
 
-Unit tests 涵蓋 Phase 1–3；integration 與 E2E tests 使用真實 Kafka/PostgreSQL 驗證 Producer、DB
-transaction、manual offset、duplicate、DLQ 與 restart replay。
+Unit tests 涵蓋 Phase 1–4；integration 與 E2E tests 使用真實 Kafka/PostgreSQL 驗證 Producer、DB
+transaction、manual offset、duplicate、DLQ、分鐘聚合與 restart replay。
 
 ## Phase 2 Event Generator
 
@@ -228,6 +229,27 @@ make generate-smoke
 make inject-bad-events
 ```
 
+## Phase 4 Application Log Consumer
+
+```bash
+make up
+make topics
+make migrate
+make log-consumer
+```
+
+Consumer group 為 `application-log-processing-group-v1`。合法 `api_access_log` 依 UTC `event_time`
+截斷至分鐘，使用 `(metric_minute, service, endpoint)` 聚合 request/status/response-time metrics，預設
+每 10 秒以 PostgreSQL additive upsert 持久化。Late event 會更新其實際舊分鐘，不使用接收時間。
+
+`average_response_time_ms` 不儲存額外欄位，而由 `response_time_sum_ms / request_count` 查詢時計算。
+`processed_events` marker 與 metrics upsert 位於同一 transaction；DB 成功後才允許 per-partition
+contiguous offset 前進。Kafka commit failure 後的 replay 不會再次增加 metrics。這是 at-least-once
+delivery 加 idempotent database processing，不是 exactly-once。
+
+目前 HTTP minute metrics 不接受缺少 status/response-time 的 `application_error_log`；這類事件以
+`UnsupportedEventType` 送入 DLQ，不會製造假的 endpoint 或 status code。
+
 ## 日常開發指令
 
 ```bash
@@ -247,6 +269,7 @@ make test        # 執行 pytest
 make test-integration # 使用真實 Kafka/PostgreSQL 執行 integration tests
 make test-e2e      # 執行 Phase 3 executable flow
 make order-consumer # 啟動 Phase 3 Order Consumer
+make log-consumer   # 啟動 Phase 4 Application Log Consumer
 make generate-smoke # 100 EPS、60 秒的混合事件
 make inject-bad-events # 產生 schema-invalid 測試事件
 ```
@@ -297,7 +320,6 @@ docker compose down -v
 
 後續會依序加入：
 
-1. Phase 4：Log Consumer、每分鐘 aggregation 與 PostgreSQL upsert
-2. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
+1. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
 
 README 不會在完成實測前加入虛構的效能數字。

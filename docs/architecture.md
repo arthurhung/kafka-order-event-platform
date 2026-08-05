@@ -1,4 +1,4 @@
-# Phase 1–3 系統架構
+# Phase 1–4 系統架構
 
 Phase 1 建立三個本機基礎服務：
 
@@ -100,3 +100,20 @@ Executable composition 位於 `apps/order_consumer`。Kafka polling、DLQ produc
 processing service 分別位於 `src/streaming_platform`，polling loop 不承擔資料映射或 transaction 邏輯。
 
 Phase 3 不包含 Application Log Consumer、aggregation、window、watermark 或 benchmark。
+
+## Phase 4 Application Log Consumer
+
+```text
+ecommerce.application-logs.raw.v1
+→ decode / api_access_log validation
+├─ permanent error → delivery-confirmed ecommerce.dlq.v1
+└─ valid event → event-time UTC minute buffer
+                 → snapshot/swap every 10 seconds
+                 → one PostgreSQL transaction
+                    ├─ processed_events idempotency markers
+                    └─ additive log_metrics_minute upsert
+                 → per-partition contiguous offset commit
+```
+
+Late event 使用自己的 `event_time` 更新舊分鐘。Buffer、aggregation、repository、offset tracker 與
+polling orchestration 分層，Kafka loop 不包含 SQL。Phase 4 不加入 window/watermark framework。

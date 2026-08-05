@@ -57,6 +57,17 @@ Order Consumer 透過設定加入 `order-processing-group-v1`，並同時關閉 
 `enable.auto.offset.store`。每筆訊息完成 PostgreSQL transaction 或 DLQ delivery 後，才以 synchronous
 commit 提交下一個 offset。
 
+## Phase 4 Application Log Consumer Group
+
+Log Consumer 加入 `application-log-processing-group-v1`，同樣關閉 automatic commit 與 automatic
+offset storage。合法事件只在記憶體 buffer 中時保持 pending；DB transaction 成功後才標記 completed。
+DLQ 事件則在 broker delivery acknowledgement 後標記 completed。
+
+每個 partition 分別追蹤 pending/completed offsets，只提交從前次 committed position 開始連續完成的
+最高 offset + 1。較後面的 invalid event 即使先完成 DLQ，也不能越過較早、尚未 flush 的合法事件。
+Rebalance revoke 會先安全 flush，再提交被 revoke partitions 的 contiguous offsets；assignment lost
+時不嘗試宣稱 commit 成功。
+
 ## 單節點限制
 
 所有 topics 的 replication factor 都是 1，符合本機單 Broker 環境，但不提供 Broker failure

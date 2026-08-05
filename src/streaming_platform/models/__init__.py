@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import Field, TypeAdapter
 
 from streaming_platform.models.application_log import (
+    API_ACCESS_LOG_ADAPTER,
     ApiAccessLogEvent,
     ApiAccessLogPayload,
     ApplicationErrorLogEvent,
@@ -39,6 +40,7 @@ PlatformEvent = Annotated[
 PLATFORM_EVENT_ADAPTER: TypeAdapter[PlatformEvent] = TypeAdapter(PlatformEvent)
 
 __all__ = [
+    "API_ACCESS_LOG_ADAPTER",
     "ORDER_EVENT_ADAPTER",
     "PLATFORM_EVENT_ADAPTER",
     "ApiAccessLogEvent",

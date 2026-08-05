@@ -1,5 +1,6 @@
 .PHONY: help up down restart logs topics list-topics describe-topics smoke-kafka migrate test \
 	test-unit test-integration test-e2e lint format typecheck clean order-consumer \
+	log-consumer \
 	generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark demo
 
 PYTHON ?= python
@@ -7,11 +8,12 @@ KAFKA_CLI := /opt/kafka/bin
 GENERATOR := $(PYTHON) -m apps.event_generator
 
 help:
-	@echo "Phase 1-3 targets:"
+	@echo "Phase 1-4 targets:"
 	@echo "  up / down / restart / logs"
 	@echo "  topics / list-topics / describe-topics / smoke-kafka"
 	@echo "  generate-smoke / generate-standard / generate-stress / inject-bad-events"
 	@echo "  order-consumer / migrate / lint / format / typecheck"
+	@echo "  log-consumer"
 	@echo "  test / test-unit / test-integration / test-e2e / clean"
 
 up:
@@ -87,6 +89,9 @@ inject-bad-events:
 
 order-consumer:
 	$(PYTHON) -m apps.order_consumer
+
+log-consumer:
+	$(PYTHON) -m apps.log_consumer
 
 consumer-lag benchmark demo:
 	@echo "$@ is intentionally unavailable until its phase is implemented."

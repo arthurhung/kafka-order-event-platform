@@ -1,4 +1,4 @@
-"""Synchronous, delivery-confirmed producer for order dead-letter records."""
+"""Synchronous, delivery-confirmed producer for dead-letter records."""
 
 from collections.abc import Callable
 from time import monotonic
@@ -34,10 +34,15 @@ class DlqProducer:
         settings: Settings,
         producer: ProducerClient | None = None,
         clock: Callable[[], float] = monotonic,
+        delivery_timeout_seconds: float | None = None,
     ) -> None:
         """Create a producer whose acknowledgements are local-cluster durable only."""
         self._topic = settings.KAFKA_DLQ_TOPIC
-        self._delivery_timeout = settings.ORDER_CONSUMER_DELIVERY_TIMEOUT_SECONDS
+        self._delivery_timeout = (
+            settings.ORDER_CONSUMER_DELIVERY_TIMEOUT_SECONDS
+            if delivery_timeout_seconds is None
+            else delivery_timeout_seconds
+        )
         self._producer = producer or cast(
             ProducerClient,
             Producer(

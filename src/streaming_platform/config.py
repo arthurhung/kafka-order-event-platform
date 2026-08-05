@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     ORDER_CONSUMER_POLL_TIMEOUT_SECONDS: float = Field(default=1.0, gt=0, le=30)
     ORDER_CONSUMER_DELIVERY_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=300)
 
+    LOG_CONSUMER_MAX_RETRIES: int = Field(default=3, ge=0, le=20)
+    LOG_CONSUMER_RETRY_BASE_SECONDS: float = Field(default=1.0, gt=0, le=60)
+    LOG_CONSUMER_RETRY_MAX_SECONDS: float = Field(default=4.0, gt=0, le=300)
+    LOG_CONSUMER_POLL_TIMEOUT_SECONDS: float = Field(default=1.0, gt=0, le=30)
+    LOG_CONSUMER_DELIVERY_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=300)
+    LOG_CONSUMER_FLUSH_INTERVAL_SECONDS: float = Field(default=10.0, gt=0, le=300)
+
     POSTGRES_HOST: str
     POSTGRES_PORT: int = Field(ge=1, le=65535)
     POSTGRES_DB: str
