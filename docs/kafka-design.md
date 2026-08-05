@@ -29,14 +29,24 @@ Bootstrap script 會先讀取現有 Kafka metadata，只建立不存在的 topic
 
 ## Partition 設計
 
-Order topic 使用 6 個 partitions。後續 Producer 會以 `order_id` 作為 key，讓同一訂單的事件進入
+Order topic 使用 6 個 partitions。Phase 2 Event Generator 以 `order_id` 作為 key，讓同一訂單的事件進入
 相同 partition，以保留單一訂單內的事件順序；不同訂單仍可分散處理。
 
-Application log topic 同樣使用 6 個 partitions。後續 Producer 會以 `service` 作為 key，讓同一服務的
+Application log topic 同樣使用 6 個 partitions。Phase 2 Event Generator 以 `service` 作為 key，讓同一服務的
 日誌傾向進入相同 partition，同時保留跨服務的平行處理能力。
 
-DLQ 使用 3 個 partitions，後續 DLQ Producer 會以 `event_id` 作為 key。Phase 1 只建立 topic，尚未
+Generator 的 service 候選值為 `order-api`、`payment-api`、`user-api`、`inventory-api`、
+`notification-api`、`gateway-api`、`catalog-api`、`auth-api`、`shipping-api`。Producer 不指定
+partition，由 librdkafka 預設的 `consistent_random` partitioner 對非空 key 使用 CRC32 hash。
+相同 service 會穩定進入同一 partition，不同 service 可能發生 hash collision；候選值數量不應被誤解為
+一定會使用相同數量的 partitions。
+
+DLQ 使用 3 個 partitions，後續 DLQ Producer 會以 `event_id` 作為 key。目前只建立 topic，尚未
 實作 DLQ message schema 與 produce 行為。
+
+Generator 的 topic 名稱與 bootstrap servers 全部來自集中式環境設定。JSON value 使用 UTF-8，
+Producer 透過 delivery callback 統計成功與失敗、定期 `poll()`，並在結束前 `flush()`。單節點環境
+仍不可把 delivery acknowledgement 解讀為多副本 durability。
 
 Consumer instance 數量不應超過所消費 topic 的 partition 數，否則超出的 Consumer 會處於閒置狀態。
 

@@ -1,6 +1,6 @@
 # 可靠性設計說明
 
-## Phase 1 已完成的可靠性基礎
+## Phase 1–2 已完成的可靠性基礎
 
 Phase 1 讓本機環境的啟動與 schema 初始化具備可重複性：
 
@@ -12,6 +12,11 @@ Phase 1 讓本機環境的啟動與 schema 初始化具備可重複性：
 - 共用 logging 使用 JSON structured logging。
 - 設定由環境變數集中管理。
 - `.env` 不提交 Git，log 不應輸出密碼或完整連線字串。
+- Event Generator 透過 delivery callback 記錄每筆成功或失敗。
+- Producer queue full 使用 1、2、4 秒的 bounded backoff，不會無限重試。
+- Generator 正常完成或發生例外時都會在結束前 flush，未確認訊息會計入失敗。
+- Generator 收到 Ctrl+C 時會先完成 flush 與 JSON report，再以 130 結束且不輸出 traceback。
+- JSON report 的 attempted、delivered、failed 與 injection 數字來自實際執行統計。
 
 ## 本機環境限制
 
@@ -30,7 +35,7 @@ redundancy，因此 `acks=all` 不代表多副本耐久性。PostgreSQL 也使�
 
 ## 後續 Consumer 必須遵守的規則
 
-以下行為尚未在 Phase 1 實作，但後續 Consumer 必須依 `SPEC.md` 遵守：
+以下行為尚未在 Phase 2 實作，但後續 Consumer 必須依 `SPEC.md` 遵守：
 
 1. 關閉 Kafka automatic offset commit。
 2. 只有在下游處理成功後才能提交 offset。

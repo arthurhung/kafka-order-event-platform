@@ -4,12 +4,14 @@
 
 PYTHON ?= python
 KAFKA_CLI := /opt/kafka/bin
+GENERATOR := $(PYTHON) -m apps.event_generator
 
 help:
-	@echo "Phase 1 targets:"
+	@echo "Phase 1-2 targets:"
 	@echo "  up / down / restart / logs"
 	@echo "  topics / list-topics / describe-topics / smoke-kafka"
-	@echo "  migrate / lint / format / typecheck / test / test-unit / clean"
+	@echo "  generate-smoke / generate-standard / generate-stress / inject-bad-events"
+	@echo "  migrate / lint / format / typecheck / test / test-unit / test-integration / clean"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -47,8 +49,7 @@ test-unit:
 	$(PYTHON) -m pytest tests/unit
 
 test-integration:
-	@echo "Integration tests are scheduled for Phase 3; no placeholder tests are run."
-	@exit 2
+	$(PYTHON) -m pytest tests/integration
 
 lint:
 	$(PYTHON) -m ruff check .
@@ -63,6 +64,23 @@ clean:
 	find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache \) -prune -exec rm -rf {} +
 	rm -f .coverage
 
-generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark demo:
+generate-smoke:
+	$(GENERATOR) --events-per-second 100 --duration-seconds 60 \
+		--order-ratio 0.2 --log-ratio 0.8 --seed 42 --report-path reports/latest.json
+
+generate-standard:
+	$(GENERATOR) --events-per-second 1000 --duration-seconds 300 \
+		--order-ratio 0.2 --log-ratio 0.8 --seed 42 --report-path reports/standard.json
+
+generate-stress:
+	$(GENERATOR) --events-per-second 5000 --duration-seconds 300 \
+		--order-ratio 0.2 --log-ratio 0.8 --seed 42 --report-path reports/stress.json
+
+inject-bad-events:
+	$(GENERATOR) --events-per-second 100 --duration-seconds 10 \
+		--order-ratio 0.5 --log-ratio 0.5 --invalid-rate 1.0 --seed 42 \
+		--report-path reports/invalid-events.json
+
+consumer-lag benchmark demo:
 	@echo "$@ is intentionally unavailable until its phase is implemented."
 	@exit 2

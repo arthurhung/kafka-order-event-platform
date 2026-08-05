@@ -1,10 +1,11 @@
 # Kafka 即時資料處理平台
 
-這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前只完成 Phase 1，
-提供可重複建立的開發基礎環境：Python 3.14.6、單節點 combined KRaft Kafka、PostgreSQL、
-Kafka UI、資料庫 migration、Kafka topic bootstrap、集中式設定與 JSON structured logging。
+這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前完成 Phase 1 基礎環境與
+Phase 2 Event Models／Event Generator：Python 3.14.6、單節點 combined KRaft Kafka、PostgreSQL、
+Kafka UI、topic bootstrap、Pydantic 2.x 事件模型，以及可調整 EPS、事件比例與注入類型的 Producer。
 
-Phase 1 尚未包含事件產生器與 Consumer；這些功能會依照 `SPEC.md` 在後續階段實作。
+Consumer、manual offset commit、PostgreSQL event persistence、idempotency 與 DLQ 尚未實作，會依照
+`SPEC.md` 在後續階段加入。
 
 ## 前置需求
 
@@ -167,8 +168,43 @@ make typecheck
 make test
 ```
 
-目前的測試只涵蓋 Phase 1。Integration、end-to-end 與 consumer reliability tests 會在對應階段加入，
-不會以 placeholder test 冒充完成。
+Unit tests 涵蓋 Phase 1 與 Phase 2；Phase 2 integration tests 使用真實 Kafka 驗證 Producer、topic、
+key、invalid、stale 與 duplicate round trip。Consumer reliability 與 end-to-end tests 仍留在後續階段。
+
+## Phase 2 Event Generator
+
+CLI 可直接指定 EPS、持續時間、Order／Log 比例，以及互斥的 invalid、stale、duplicate 注入比例：
+
+```bash
+python -m apps.event_generator \
+  --events-per-second 1000 \
+  --duration-seconds 60 \
+  --order-ratio 0.2 \
+  --log-ratio 0.8 \
+  --invalid-rate 0.02 \
+  --stale-rate 0.01 \
+  --stale-hours 168 \
+  --duplicate-rate 0.05 \
+  --seed 42 \
+  --report-path reports/latest.json
+```
+
+Order event 使用 `order_id` 作為 Kafka key；application log 使用 `service`。stale event 保持
+schema-valid，只將 aware `event_time` 往前移動；invalid、stale、duplicate 會在 JSON report 中分開
+統計。Producer 會定期 poll delivery callback、在本機 queue full 時 bounded backoff，並於結束前
+flush。
+
+Log Generator 會從 `order-api`、`payment-api`、`user-api`、`inventory-api`、
+`notification-api`、`gateway-api`、`catalog-api`、`auth-api`、`shipping-api` 隨機選擇 service。
+Producer 不寫死 partition；相同 service key 由 Kafka client 穩定分配到相同 partition，不同 key 仍可能
+因 hash collision 落在同一 partition。
+
+常用 preset：
+
+```bash
+make generate-smoke
+make inject-bad-events
+```
 
 ## 日常開發指令
 
@@ -186,6 +222,9 @@ make lint        # 執行 Ruff
 make format      # 執行 Ruff formatter
 make typecheck   # 執行 mypy
 make test        # 執行 pytest
+make test-integration # 使用真實 Kafka 執行 Phase 2 integration tests
+make generate-smoke # 100 EPS、60 秒的混合事件
+make inject-bad-events # 產生 schema-invalid 測試事件
 ```
 
 只查看特定服務的 logs：
@@ -234,9 +273,8 @@ docker compose down -v
 
 後續會依序加入：
 
-1. Phase 2：Pydantic event models 與 event generator
-2. Phase 3：Order Consumer、manual offset commit、idempotency、retry 與 DLQ
-3. Phase 4：Log Consumer、每分鐘 aggregation 與 PostgreSQL upsert
-4. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
+1. Phase 3：Order Consumer、manual offset commit、idempotency、retry 與 DLQ
+2. Phase 4：Log Consumer、每分鐘 aggregation 與 PostgreSQL upsert
+3. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
 
 README 不會在完成實測前加入虛構的效能數字。

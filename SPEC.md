@@ -326,12 +326,21 @@ make smoke-kafka
 | `source` | string | 事件來源 |
 | `payload` | object | 業務內容 |
 
-規則：
+Envelope 規則：
 
-- 所有 datetime 必須 timezone-aware
-- 序列化與儲存使用 UTC
 - 新事件必須產生唯一 `event_id`
 - Duplicate 測試事件故意重用既有 `event_id`
+
+## 8.1 Event Time Rules
+
+- `event_time` 必須是 timezone-aware datetime
+- 不接受 naive datetime
+- `event_time` 在模型驗證後必須正規化為 UTC，並以 UTC 序列化與儲存
+- Base Event Model 不限制事件距離目前時間多久
+- 舊事件可能代表 late event、replay 或 backfill，不得只因時間較舊而被共用模型拒絕
+
+Event Generator 可以產生 stale event，但 stale event 必須保持 schema-valid，且必須與
+schema-invalid event 分開注入、驗證與統計。
 
 ---
 
@@ -365,15 +374,62 @@ make smoke-kafka
 }
 ```
 
-驗證規則：
+每個 Order Event Type 必須使用獨立 Payload Model，不得以一個包含大量 Optional 欄位的
+共用 Order Payload 取代：
 
-- `order_id` 必填
-- `user_id` 必填
-- `quantity > 0`
-- `amount > 0`
-- `currency` 僅接受 `TWD`、`USD`
-- `channel` 僅接受 `web`、`ios`、`android`
-- 金額使用 Decimal，不用 float 寫入 DB
+## 9.1 OrderCreatedPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `order_id` | 是 | 非空字串 |
+| `user_id` | 是 | 非空字串 |
+| `product_id` | 是 | 非空字串 |
+| `quantity` | 是 | `> 0` |
+| `amount` | 是 | Decimal，`> 0` |
+| `currency` | 是 | `TWD`、`USD` |
+| `channel` | 是 | `web`、`ios`、`android` |
+
+## 9.2 OrderPaidPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `order_id` | 是 | 非空字串 |
+| `user_id` | 是 | 非空字串 |
+| `payment_id` | 是 | 非空字串 |
+| `amount` | 是 | Decimal，`> 0` |
+| `currency` | 是 | `TWD`、`USD` |
+| `payment_method` | 是 | 非空字串 |
+
+## 9.3 OrderCancelledPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `order_id` | 是 | 非空字串 |
+| `user_id` | 是 | 非空字串 |
+| `cancellation_reason` | 是 | 非空字串 |
+
+## 9.4 PaymentFailedPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `order_id` | 是 | 非空字串 |
+| `user_id` | 是 | 非空字串 |
+| `payment_id` | 是 | 非空字串 |
+| `amount` | 是 | Decimal，`> 0` |
+| `currency` | 是 | `TWD`、`USD` |
+| `failure_code` | 是 | 非空字串 |
+| `failure_reason` | 是 | 非空字串 |
+
+Event Model 與 Payload Model 的對應必須固定：
+
+| `event_type` | Payload Model |
+|---|---|
+| `order_created` | `OrderCreatedPayload` |
+| `order_paid` | `OrderPaidPayload` |
+| `order_cancelled` | `OrderCancelledPayload` |
+| `payment_failed` | `PaymentFailedPayload` |
+
+所有金額欄位使用 Decimal，不使用 Python float 進行金額資料庫寫入。
 
 ---
 
@@ -405,14 +461,51 @@ make smoke-kafka
 }
 ```
 
-驗證規則：
+每個 Log Event Type 必須使用獨立 Payload Model，不得以一個包含大量 Optional 欄位的
+共用 Log Payload 取代。
 
-- `request_id` 必填
-- `service` 必填
-- `endpoint` 以 `/` 開頭
-- HTTP Method 在允許清單內
-- `status_code` 介於 100 到 599
-- `response_time_ms >= 0`
+HTTP Method 建議以 string Enum 實作，允許值固定為：
+
+- `GET`
+- `POST`
+- `PUT`
+- `PATCH`
+- `DELETE`
+- `HEAD`
+- `OPTIONS`
+
+其他 HTTP Method 必須產生 validation error。
+
+## 10.1 ApiAccessLogPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `request_id` | 是 | 非空字串 |
+| `service` | 是 | 非空字串 |
+| `endpoint` | 是 | 以 `/` 開頭 |
+| `http_method` | 是 | HTTP Method allowlist |
+| `status_code` | 是 | 100 到 599 |
+| `response_time_ms` | 是 | `>= 0` |
+| `client_ip` | 是 | 非空字串 |
+
+## 10.2 ApplicationErrorLogPayload
+
+| 欄位 | 必填 | 驗證規則 |
+|---|---|---|
+| `request_id` | 是 | 非空字串 |
+| `service` | 是 | 非空字串 |
+| `error_type` | 是 | 非空字串 |
+| `error_message` | 是 | 非空字串 |
+| `endpoint` | 否 | 若提供，必須以 `/` 開頭 |
+| `stack_trace` | 否 | 字串 |
+| `trace_id` | 否 | 非空字串 |
+
+Event Model 與 Payload Model 的對應必須固定：
+
+| `event_type` | Payload Model |
+|---|---|
+| `api_access_log` | `ApiAccessLogPayload` |
+| `application_error_log` | `ApplicationErrorLogPayload` |
 
 ---
 
@@ -682,6 +775,7 @@ Event Generator、Order Consumer、Log Consumer、DLQ 邏輯、冪等處理、Be
 - Duration
 - Event Mix
 - Invalid Injection
+- Stale Event Injection
 - Duplicate Injection
 - Delivery Callback
 - Producer Report
@@ -695,10 +789,20 @@ python -m apps.event_generator \
   --order-ratio 0.2 \
   --log-ratio 0.8 \
   --invalid-rate 0.02 \
+  --stale-rate 0.01 \
+  --stale-hours 168 \
   --duplicate-rate 0.05 \
   --seed 42 \
   --report-path reports/latest.json
 ```
+
+CLI 參數規則：
+
+- `--invalid-rate`、`--stale-rate`、`--duplicate-rate` 的範圍皆為 0 到 1
+- normal、invalid、stale、duplicate 是互斥的事件分類
+- `invalid-rate + stale-rate + duplicate-rate` 不得大於 1
+- `--stale-hours` 必須大於 0，表示 stale event 的 `event_time` 比產生當下早多少小時
+- stale event 不得計入 `--invalid-rate`
 
 ### Producer 行為
 
@@ -712,21 +816,116 @@ python -m apps.event_generator \
 - 結束前 `flush()`
 - 每 5 秒輸出進度
 - 記錄 attempted、delivered、failed、actual EPS
+- 分別記錄 schema-invalid、stale、duplicate injection 數量
 
 ### Invalid Injection
+
+Schema-invalid event 包含：
 
 - 缺少必要欄位
 - 負數 amount
 - Invalid currency
 - Invalid channel
+- Invalid HTTP method
 - Invalid status code
-- Invalid event type
+- Unsupported event type
 - Malformed payload
-- 過舊 event_time
+
+規則：
+
+- Invalid injection 必須從合法事件建立可路由的原始 Topic 與 Kafka Key，再破壞 schema
+- 僅對具有對應欄位的 Event Type 套用該 invalid 變體
+- schema-invalid event 必須計入 `invalid_events_injected`
+- stale event 不屬於 schema-invalid event
+
+### Stale Event Injection
+
+- stale event 的 `event_time` 為產生當下 UTC 時間減去 `--stale-hours`
+- stale event 除 `event_time` 較舊外，Envelope、Event Type 與 Payload 都必須 schema-valid
+- 共用 Pydantic Event Model 必須接受 stale event
+- stale event 可代表 late event、replay 或 backfill，不得因時間較舊而自動視為錯誤
+- stale event 必須計入 `stale_events_injected`，不可計入 `invalid_events_injected`
 
 ### Duplicate Injection
 
-Duplicate 必須重送相同 `event_id`，並能在報告中獨立統計。
+Duplicate 必須從先前已產生的事件重送，至少重用相同 `event_id`，不得為 duplicate 產生新的
+`event_id`。Duplicate 必須計入 `duplicate_events_injected`，並與 invalid、stale 分開統計。
+
+### Producer Report
+
+Producer 結束後必須在 `--report-path` 寫入 UTF-8 JSON report。以下只是 report schema 範例，
+不代表 benchmark 實測結果：
+
+```json
+{
+  "report_version": 1,
+  "started_at": "2026-08-03T10:00:00.000Z",
+  "finished_at": "2026-08-03T10:01:00.250Z",
+  "target_events_per_second": 1000,
+  "duration_seconds": 60,
+  "actual_events_per_second": 997.4,
+  "attempted": 60000,
+  "delivered": 59844,
+  "failed": 156,
+  "order_events_attempted": 12000,
+  "log_events_attempted": 48000,
+  "invalid_events_injected": 1200,
+  "stale_events_injected": 600,
+  "duplicate_events_injected": 3000,
+  "invalid_events_by_type": {
+    "missing_required_field": 150,
+    "negative_amount": 150,
+    "invalid_currency": 150,
+    "invalid_channel": 150,
+    "invalid_http_method": 150,
+    "invalid_status_code": 150,
+    "unsupported_event_type": 150,
+    "malformed_payload": 150
+  },
+  "seed": 42,
+  "stale_hours": 168
+}
+```
+
+Report 中所有執行結果必須來自實際 delivery callback、flush 與 generator 統計，不得填入虛構
+效能數據。至少必須分別包含：
+
+- `invalid_events_injected`
+- `stale_events_injected`
+- `duplicate_events_injected`
+
+### Phase 2 Unit Test 規格
+
+- Base Event Model 接受 timezone-aware datetime、拒絕 naive datetime
+- 非 UTC timezone-aware datetime 會正規化並序列化為 UTC
+- Base Event Model 接受 schema-valid stale event，不限制事件距離現在多久
+- 六種 Event Type 使用正確且獨立的 Payload Model
+- 每種 Payload 的 required field 與欄位驗證正確
+- Order 金額使用 Decimal，正數限制正確
+- HTTP Method string Enum 接受 allowlist 並拒絕其他 method
+- Event Factory 在相同 seed 下產生可重現的事件選擇與資料
+- 新事件使用唯一 `event_id`
+- Order / Log ratio 與三種 injection rate 驗證正確
+- 八種 schema-invalid injection 可產生預期的 validation failure
+- stale injection 保持 schema-valid，時間依 `stale-hours` 往前移動並獨立統計
+- duplicate injection 重用既有 `event_id` 並獨立統計
+- Topic routing 與 Kafka message key 計算正確
+- Delivery callback、Queue Full bounded backoff、flush 與 report calculation 正確
+
+### Phase 2 Integration Test 規格
+
+Phase 2 Integration Test 使用真實 Kafka container，但不需要 PostgreSQL，也不得實作正式
+Consumer application。測試可以使用有 timeout 的臨時 test consumer 讀回 Producer 訊息：
+
+- Order Event 寫入 Order Topic，Kafka Key 等於 `order_id`
+- Application Log Event 寫入 Log Topic，Kafka Key 等於 `service`
+- 六種 Event Type 均可經由 Producer 送達並以對應 Pydantic Model 驗證
+- schema-invalid event 可送到所屬 raw topic，讀回後會產生預期 validation error
+- stale event 可送達、讀回後仍通過 schema validation，且 report 僅增加 stale 統計
+- duplicate event 至少有兩筆訊息使用相同 `event_id`，且 report 獨立統計 duplicate
+- Delivery callback 的成功與失敗統計會反映於 report
+- 所有 consume/poll 等待必須有 timeout，不可永久等待
+- 不驗證 Manual Offset、DB、Idempotency、DLQ 或 Phase 3 Consumer 行為
 
 ### Phase 2 驗收
 
@@ -734,11 +933,17 @@ Duplicate 必須重送相同 `event_id`，並能在報告中獨立統計。
 - [ ] Topic Routing 正確
 - [ ] Kafka Key 正確
 - [ ] EPS / Duration / Mix 可調
+- [ ] Base Event Model 拒絕 naive datetime，並將 aware datetime 正規化及序列化為 UTC
+- [ ] Base Event Model 接受 schema-valid stale event，不以事件年齡作全域拒絕
+- [ ] 四種 Order Event 與兩種 Log Event 使用各自的 Payload Model
+- [ ] HTTP Method allowlist 驗證正確
 - [ ] Invalid Injection 可運作
+- [ ] Stale Injection 可運作且保持 schema-valid
 - [ ] Duplicate Injection 可運作
+- [ ] Invalid、Stale、Duplicate Injection 分開統計
 - [ ] Delivery Failure 可被統計
 - [ ] Producer 結束前 Flush
-- [ ] 產出 JSON Report
+- [ ] JSON Report 包含 `invalid_events_injected`、`stale_events_injected`、`duplicate_events_injected`
 - [ ] Unit Test 通過
 - [ ] Integration Test 通過
 - [ ] lint / typecheck 通過
@@ -1038,11 +1243,14 @@ make test
 
 ## Unit Test
 
+- Phase 2：Base Event Model timezone-aware / UTC normalization / stale acceptance
+- Phase 2：六種獨立 Payload Model 與 HTTP Method string Enum
 - Pydantic Validation
 - Decimal
 - UTC Datetime
 - Event Factory
 - Ratio Validation
+- Invalid / Stale / Duplicate Injection 分類與統計
 - Duplicate Reuse
 - Aggregation
 - Retry Backoff
@@ -1051,12 +1259,23 @@ make test
 
 ## Integration Test
 
-使用真實 Kafka 與 PostgreSQL Container 驗證：
+重要整合行為不得全部 Mock。Phase 2 使用真實 Kafka container；進入需要資料庫的 Phase 3、
+Phase 4 與 E2E 時，才同時使用真實 PostgreSQL container。
+
+Phase 2 驗證：
 
 - Python Producer Delivery
 - Topic Routing
 - Key Routing
 - Consumer Read
+- 六種 Event Type round trip
+- Schema-invalid event validation failure
+- Schema-valid stale event round trip
+- Duplicate `event_id` reuse
+- Producer report injection 與 delivery 統計
+
+後續 Phase 驗證：
+
 - Valid Persistence
 - Idempotency
 - DLQ

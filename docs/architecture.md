@@ -1,9 +1,9 @@
-# Phase 1 系統架構
+# Phase 1–2 系統架構
 
 Phase 1 建立三個本機基礎服務：
 
 ```text
-本機 Python 工具 ── Kafka protocol ──> Kafka（combined KRaft Broker／Controller）
+Event Generator／本機工具 ── Kafka protocol ──> Kafka（combined KRaft Broker／Controller）
        │                                      │
        ├── SQL／Alembic ──────────────> PostgreSQL 16
        │
@@ -58,10 +58,26 @@ make migrate
 
 這讓基礎服務啟動、Kafka metadata 初始化與 database schema 變更維持清楚且可獨立除錯。
 
-## Phase 1 邊界
+## Phase 2 Event Generator
 
-Phase 1 的 Docker Compose 只包含 Kafka、PostgreSQL 與 Kafka UI。Order Consumer、Log Consumer
-與 Event Generator 屬於後續階段，因此目前不建立空殼服務或假的 executable。
+Phase 2 在本機 Python process 中執行 Event Generator：
 
-資料庫 migration 先建立規格已確定的資料表，供後續 Consumer 使用，但 Phase 1 不包含任何事件處理、
-offset commit、retry、DLQ producer 或 aggregation 行為。
+```text
+Pydantic Event Factory
+→ normal / schema-invalid / schema-valid stale / duplicate
+→ topic + UTF-8 key routing
+→ confluent-kafka Producer
+→ delivery callback / bounded queue backoff / flush
+→ measured JSON report
+```
+
+共用 Event Envelope 只拒絕 naive datetime，並將 aware datetime 正規化為 UTC。Order、payment、
+access log 與 error log 各自使用符合事件語意的 Payload Model，不以大量 Optional 欄位合併模型。
+
+## Phase 2 邊界
+
+Docker Compose 仍只包含 Kafka、PostgreSQL 與 Kafka UI。Event Generator 是 Phase 2 的本機 Python
+application；Order Consumer 與 Log Consumer 尚未建立，也沒有空殼 executable。
+
+資料庫 migration 已建立後續會使用的資料表，但 Phase 2 不包含 event persistence、offset commit、
+idempotency、retry、DLQ consumer 或 aggregation 行為。
