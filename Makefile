@@ -1,5 +1,5 @@
 .PHONY: help up down restart logs topics list-topics describe-topics smoke-kafka migrate test \
-	test-unit test-integration lint format typecheck clean \
+	test-unit test-integration test-e2e lint format typecheck clean order-consumer \
 	generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark demo
 
 PYTHON ?= python
@@ -7,11 +7,12 @@ KAFKA_CLI := /opt/kafka/bin
 GENERATOR := $(PYTHON) -m apps.event_generator
 
 help:
-	@echo "Phase 1-2 targets:"
+	@echo "Phase 1-3 targets:"
 	@echo "  up / down / restart / logs"
 	@echo "  topics / list-topics / describe-topics / smoke-kafka"
 	@echo "  generate-smoke / generate-standard / generate-stress / inject-bad-events"
-	@echo "  migrate / lint / format / typecheck / test / test-unit / test-integration / clean"
+	@echo "  order-consumer / migrate / lint / format / typecheck"
+	@echo "  test / test-unit / test-integration / test-e2e / clean"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -51,6 +52,9 @@ test-unit:
 test-integration:
 	$(PYTHON) -m pytest tests/integration
 
+test-e2e:
+	$(PYTHON) -m pytest tests/e2e
+
 lint:
 	$(PYTHON) -m ruff check .
 
@@ -80,6 +84,9 @@ inject-bad-events:
 	$(GENERATOR) --events-per-second 100 --duration-seconds 10 \
 		--order-ratio 0.5 --log-ratio 0.5 --invalid-rate 1.0 --seed 42 \
 		--report-path reports/invalid-events.json
+
+order-consumer:
+	$(PYTHON) -m apps.order_consumer
 
 consumer-lag benchmark demo:
 	@echo "$@ is intentionally unavailable until its phase is implemented."

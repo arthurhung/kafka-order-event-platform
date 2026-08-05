@@ -13,12 +13,14 @@ from streaming_platform.models.application_log import (
 )
 from streaming_platform.models.event import BaseEventEnvelope, EventType
 from streaming_platform.models.order import (
+    ORDER_EVENT_ADAPTER,
     Currency,
     OrderCancelledEvent,
     OrderCancelledPayload,
     OrderChannel,
     OrderCreatedEvent,
     OrderCreatedPayload,
+    OrderEvent,
     OrderPaidEvent,
     OrderPaidPayload,
     PaymentFailedEvent,
@@ -37,6 +39,7 @@ PlatformEvent = Annotated[
 PLATFORM_EVENT_ADAPTER: TypeAdapter[PlatformEvent] = TypeAdapter(PlatformEvent)
 
 __all__ = [
+    "ORDER_EVENT_ADAPTER",
     "PLATFORM_EVENT_ADAPTER",
     "ApiAccessLogEvent",
     "ApiAccessLogPayload",
@@ -51,6 +54,7 @@ __all__ = [
     "OrderChannel",
     "OrderCreatedEvent",
     "OrderCreatedPayload",
+    "OrderEvent",
     "OrderPaidEvent",
     "OrderPaidPayload",
     "PaymentFailedEvent",

@@ -1,4 +1,4 @@
-# Phase 1–2 系統架構
+# Phase 1–3 系統架構
 
 Phase 1 建立三個本機基礎服務：
 
@@ -81,3 +81,22 @@ application；Order Consumer 與 Log Consumer 尚未建立，也沒有空殼 exe
 
 資料庫 migration 已建立後續會使用的資料表，但 Phase 2 不包含 event persistence、offset commit、
 idempotency、retry、DLQ consumer 或 aggregation 行為。
+
+## Phase 3 Order Consumer
+
+```text
+ecommerce.orders.raw.v1
+→ UTF-8 / JSON decode
+→ Order Pydantic validation
+├─ permanent error → delivery-confirmed ecommerce.dlq.v1 → commit source offset
+└─ valid event → PostgreSQL transaction
+                 ├─ INSERT processed_events ON CONFLICT DO NOTHING
+                 └─ new event only: INSERT valid_orders
+                 → commit DB
+                 → commit Kafka offset
+```
+
+Executable composition 位於 `apps/order_consumer`。Kafka polling、DLQ producer、retry、repository 與
+processing service 分別位於 `src/streaming_platform`，polling loop 不承擔資料映射或 transaction 邏輯。
+
+Phase 3 不包含 Application Log Consumer、aggregation、window、watermark 或 benchmark。

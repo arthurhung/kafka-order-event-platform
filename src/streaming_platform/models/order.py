@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from streaming_platform.models.event import BaseEventEnvelope, EventType, NonEmptyString
 
@@ -100,3 +100,10 @@ class PaymentFailedEvent(BaseEventEnvelope[PaymentFailedPayload]):
     """A payment-failed event."""
 
     event_type: Literal[EventType.PAYMENT_FAILED] = EventType.PAYMENT_FAILED
+
+
+OrderEvent = Annotated[
+    OrderCreatedEvent | OrderPaidEvent | OrderCancelledEvent | PaymentFailedEvent,
+    Field(discriminator="event_type"),
+]
+ORDER_EVENT_ADAPTER: TypeAdapter[OrderEvent] = TypeAdapter(OrderEvent)

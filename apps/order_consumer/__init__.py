@@ -1,0 +1,1 @@
+"""Order consumer executable application."""

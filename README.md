@@ -1,11 +1,10 @@
 # Kafka 即時資料處理平台
 
-這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前完成 Phase 1 基礎環境與
-Phase 2 Event Models／Event Generator：Python 3.14.6、單節點 combined KRaft Kafka、PostgreSQL、
-Kafka UI、topic bootstrap、Pydantic 2.x 事件模型，以及可調整 EPS、事件比例與注入類型的 Producer。
+這是一個可在本機執行的 Kafka 即時事件與應用程式日誌處理平台。目前完成 Phase 1–3：本機 Kafka／
+PostgreSQL 基礎環境、Pydantic 事件模型、可調整流量的 Event Generator，以及具備 manual offset
+commit、PostgreSQL transaction、idempotency、bounded retry 與 DLQ 的 Order Consumer。
 
-Consumer、manual offset commit、PostgreSQL event persistence、idempotency 與 DLQ 尚未實作，會依照
-`SPEC.md` 在後續階段加入。
+Application Log Consumer、分鐘聚合與 benchmark 尚未實作，會依照 `SPEC.md` 在後續階段加入。
 
 ## 前置需求
 
@@ -168,8 +167,8 @@ make typecheck
 make test
 ```
 
-Unit tests 涵蓋 Phase 1 與 Phase 2；Phase 2 integration tests 使用真實 Kafka 驗證 Producer、topic、
-key、invalid、stale 與 duplicate round trip。Consumer reliability 與 end-to-end tests 仍留在後續階段。
+Unit tests 涵蓋 Phase 1–3；integration 與 E2E tests 使用真實 Kafka/PostgreSQL 驗證 Producer、DB
+transaction、manual offset、duplicate、DLQ 與 restart replay。
 
 ## Phase 2 Event Generator
 
@@ -199,6 +198,29 @@ Log Generator 會從 `order-api`、`payment-api`、`user-api`、`inventory-api`�
 Producer 不寫死 partition；相同 service key 由 Kafka client 穩定分配到相同 partition，不同 key 仍可能
 因 hash collision 落在同一 partition。
 
+## Phase 3 Order Consumer
+
+```bash
+make up
+make topics
+make migrate
+make order-consumer
+```
+
+Order Consumer 使用 `.env` 中的 `KAFKA_ORDER_CONSUMER_GROUP`，範例值固定為
+`order-processing-group-v1`。Kafka automatic commit 與 automatic offset store 均關閉。
+
+合法事件會在同一個 PostgreSQL transaction 內寫入 `processed_events` 與 `valid_orders`，DB commit
+完成後才同步提交 Kafka offset。重複 `event_id` 由 `(consumer_group, event_id)` primary key 原子判斷，
+不會再次寫入 `valid_orders`。
+
+JSON decode 或 Pydantic validation error 會寫入 `ecommerce.dlq.v1`；只有 delivery callback 確認
+DLQ delivery 後才提交原訊息 offset。PostgreSQL 與暫時性 Kafka 錯誤預設最多 retry 3 次，等待
+1、2、4 秒。若仍失敗，Consumer 不提交 offset 並以非零狀態停止。
+
+此設計是 at-least-once processing 加 idempotent consumer，不是 Kafka 與 PostgreSQL 之間的
+exactly-once transaction。
+
 常用 preset：
 
 ```bash
@@ -222,7 +244,9 @@ make lint        # 執行 Ruff
 make format      # 執行 Ruff formatter
 make typecheck   # 執行 mypy
 make test        # 執行 pytest
-make test-integration # 使用真實 Kafka 執行 Phase 2 integration tests
+make test-integration # 使用真實 Kafka/PostgreSQL 執行 integration tests
+make test-e2e      # 執行 Phase 3 executable flow
+make order-consumer # 啟動 Phase 3 Order Consumer
 make generate-smoke # 100 EPS、60 秒的混合事件
 make inject-bad-events # 產生 schema-invalid 測試事件
 ```
@@ -273,8 +297,7 @@ docker compose down -v
 
 後續會依序加入：
 
-1. Phase 3：Order Consumer、manual offset commit、idempotency、retry 與 DLQ
-2. Phase 4：Log Consumer、每分鐘 aggregation 與 PostgreSQL upsert
-3. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
+1. Phase 4：Log Consumer、每分鐘 aggregation 與 PostgreSQL upsert
+2. Phase 5：benchmark、consumer lag、完整 demo 與實測報告
 
 README 不會在完成實測前加入虛構的效能數字。

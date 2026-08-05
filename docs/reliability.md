@@ -33,9 +33,9 @@ redundancy，因此 `acks=all` 不代表多副本耐久性。PostgreSQL 也使�
 
 上述 production 項目不是目前 MVP 的實作範圍。
 
-## 後續 Consumer 必須遵守的規則
+## Phase 3 Order Consumer
 
-以下行為尚未在 Phase 2 實作，但後續 Consumer 必須依 `SPEC.md` 遵守：
+Phase 3 Order Consumer 已實作以下行為：
 
 1. 關閉 Kafka automatic offset commit。
 2. 只有在下游處理成功後才能提交 offset。
@@ -46,10 +46,18 @@ redundancy，因此 `acks=all` 不代表多副本耐久性。PostgreSQL 也使�
 7. Poison message 不得永久阻塞 partition。
 8. Retry 必須有最大次數並採用有上限的 exponential backoff。
 9. 重複 `event_id` 不得造成重複 business record。
-10. Consumer 關閉時必須處理 SIGTERM 與 SIGINT，並 flush 尚未完成的工作。
+10. Consumer 以 SIGTERM 與 SIGINT flag 停止 polling，完成目前 critical section 後關閉 Kafka、DLQ
+    producer 與 database engine。
 
-這些規則會在 Phase 3 與 Phase 4 透過 unit 與 integration tests 驗證，不能只依賴 mock Kafka 或
-mock PostgreSQL 宣稱完成。
+Unit tests 驗證分類、retry、DLQ construction、duplicate result 與 commit gate；integration/E2E tests
+使用真實 Kafka 與 PostgreSQL 驗證 transaction rollback、offset、DLQ 與 restart replay。
+
+Retry 預設為 initial attempt 加最多 3 次 retry，backoff 為 1、2、4 秒。Retries exhausted 或
+non-retryable infrastructure/invariant error 都不提交 offset，Consumer 以非零狀態停止，等待修復後
+重啟，不會吞掉錯誤或跳過訊息。
+
+DLQ message 保存原 Topic、Partition、Offset、Key、Payload、Consumer Group、失敗時間與安全錯誤資訊。
+Malformed bytes 以 UTF-8 或 base64 保存並標示 encoding。DLQ delivery 失敗時原 offset 保持不變。
 
 ## Delivery 語意
 

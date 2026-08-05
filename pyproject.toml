@@ -36,6 +36,7 @@ addopts = "--strict-config --strict-markers --cov=streaming_platform --cov-repor
 testpaths = ["tests"]
 markers = [
   "integration: requires real local Kafka infrastructure",
+  "e2e: requires real local Kafka and PostgreSQL infrastructure",
 ]
 
 [tool.coverage.run]

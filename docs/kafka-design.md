@@ -41,14 +41,21 @@ partition，由 librdkafka 預設的 `consistent_random` partitioner 對非空 k
 相同 service 會穩定進入同一 partition，不同 service 可能發生 hash collision；候選值數量不應被誤解為
 一定會使用相同數量的 partitions。
 
-DLQ 使用 3 個 partitions，後續 DLQ Producer 會以 `event_id` 作為 key。目前只建立 topic，尚未
-實作 DLQ message schema 與 produce 行為。
+DLQ 使用 3 個 partitions。Phase 3 DLQ Producer 優先以可驗證的 `event_id` 作為 key；若 malformed
+JSON 無法提供 `event_id`，則使用穩定的 `topic:partition:offset` key。DLQ callback 確認 delivery 前，
+Order Consumer 不會提交原訊息 offset。
 
 Generator 的 topic 名稱與 bootstrap servers 全部來自集中式環境設定。JSON value 使用 UTF-8，
 Producer 透過 delivery callback 統計成功與失敗、定期 `poll()`，並在結束前 `flush()`。單節點環境
 仍不可把 delivery acknowledgement 解讀為多副本 durability。
 
 Consumer instance 數量不應超過所消費 topic 的 partition 數，否則超出的 Consumer 會處於閒置狀態。
+
+## Phase 3 Order Consumer Group
+
+Order Consumer 透過設定加入 `order-processing-group-v1`，並同時關閉 `enable.auto.commit` 與
+`enable.auto.offset.store`。每筆訊息完成 PostgreSQL transaction 或 DLQ delivery 後，才以 synchronous
+commit 提交下一個 offset。
 
 ## 單節點限制
 
