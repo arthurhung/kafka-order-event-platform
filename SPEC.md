@@ -1,5 +1,17 @@
 # Kafka Order Event Platform — MVP Specification
 
+## Project Status
+
+Phase 1–5 define the completed Kafka event-processing MVP baseline.
+
+Post-MVP data platform work, including dbt, data contracts,
+CI/CD, MCP tools and AI agents, is defined in:
+
+- `DATA_PLATFORM_SPEC.md`
+
+Changes made under the data-platform extension must not silently
+alter the reliability semantics defined in this document.
+
 ## 0. 文件定位
 
 本文件是 `kafka-order-event-platform` 的唯一功能規格來源。專案採分階段實作，每個 Phase 都有明確範圍、驗收條件與停止點。
