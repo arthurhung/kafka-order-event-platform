@@ -243,6 +243,13 @@ class BenchmarkRunner:
         return report, output_path
 
     def _prepare_infrastructure(self) -> None:
+        infrastructure_mode = os.environ.get("BENCHMARK_INFRASTRUCTURE_MODE", "managed")
+        if infrastructure_mode == "preprovisioned":
+            return
+        if infrastructure_mode != "managed":
+            raise BenchmarkStageError(
+                "BENCHMARK_INFRASTRUCTURE_MODE must be 'managed' or 'preprovisioned'"
+            )
         commands = (
             (["docker", "compose", "up", "-d", "kafka", "postgres", "kafka-ui"], 180),
             ([sys.executable, "scripts/wait_for_services.py", "--timeout", "120"], 130),

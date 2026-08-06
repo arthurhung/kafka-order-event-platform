@@ -103,6 +103,9 @@ It then demonstrates both state mode and full fallback.
 artifact upload actions. It starts PostgreSQL as a service and only the Kafka service required by
 the existing fixture path; Kafka UI is not started. The workflow runs migrations, deterministic
 fixtures, policy scenarios, Slim CI, Python checks, and uploads diagnostics even when a step fails.
+The workflow sets the benchmark runner's explicit `preprovisioned` infrastructure mode so the
+unchanged regression workloads reuse those healthy services instead of starting duplicate
+PostgreSQL or Kafka UI containers. The default local benchmark mode remains `managed`.
 
 The workflow does not consume ignored local state. Pull requests use the base SHA; pushes use the
 previous SHA when available and otherwise take the explicit full fallback.

@@ -60,6 +60,7 @@ jobs:
       LOG_CONSUMER_DELIVERY_TIMEOUT_SECONDS: "10"
       LOG_CONSUMER_FLUSH_INTERVAL_SECONDS: "0.5"
       LOG_LEVEL: INFO
+      BENCHMARK_INFRASTRUCTURE_MODE: preprovisioned
       DATA_PLATFORM_FIXTURE_RUN_ID: phase7-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:

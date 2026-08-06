@@ -1,6 +1,11 @@
 from datetime import UTC, datetime
+from typing import cast
+
+import pytest
 
 from streaming_platform.benchmark.runner import (
+    BenchmarkRunner,
+    BenchmarkStageError,
     benchmark_lag,
     consumed_from_ranges,
     coordinate_in_ranges,
@@ -56,3 +61,24 @@ def test_benchmark_lag_only_treats_provably_empty_missing_offset_as_zero() -> No
     assert benchmark_lag(empty) == 0
     unavailable_with_data = snapshot(None)
     assert benchmark_lag(unavailable_with_data) is None
+
+
+def test_preprovisioned_infrastructure_does_not_start_compose(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("BENCHMARK_INFRASTRUCTURE_MODE", "preprovisioned")
+    monkeypatch.setattr(
+        "streaming_platform.benchmark.runner.subprocess.run",
+        lambda *args, **kwargs: pytest.fail("preprovisioned mode must not run setup commands"),
+    )
+    runner = cast(BenchmarkRunner, object.__new__(BenchmarkRunner))
+
+    runner._prepare_infrastructure()
+
+
+def test_unknown_infrastructure_mode_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BENCHMARK_INFRASTRUCTURE_MODE", "unknown")
+    runner = cast(BenchmarkRunner, object.__new__(BenchmarkRunner))
+
+    with pytest.raises(BenchmarkStageError, match="BENCHMARK_INFRASTRUCTURE_MODE"):
+        runner._prepare_infrastructure()
