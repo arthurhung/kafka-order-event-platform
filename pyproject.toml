@@ -27,9 +27,13 @@ dev = [
   "ruff>=0.12,<1",
   "types-python-dateutil>=2.9",
 ]
+data-platform = [
+  "dbt-core>=1.12,<1.13",
+  "dbt-postgres>=1.11,<1.12",
+]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/streaming_platform"]
+packages = ["src/streaming_platform", "src/data_platform"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers --cov=streaming_platform --cov-report=term-missing"
@@ -37,6 +41,7 @@ testpaths = ["tests"]
 markers = [
   "integration: requires real local Kafka infrastructure",
   "e2e: requires real local Kafka and PostgreSQL infrastructure",
+  "data_platform: requires the local PostgreSQL dbt target",
 ]
 
 [tool.coverage.run]

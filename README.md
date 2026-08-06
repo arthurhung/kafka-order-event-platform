@@ -4,6 +4,9 @@
 transaction、idempotent consumer、bounded retry、DLQ、每分鐘日誌聚合、Consumer Lag、故障恢復與實測
 benchmark。它是一個作品集與面試展示專案，不是 production-ready 系統。
 
+Phase 6 已在既有 PostgreSQL sources 上加入本機 dbt data products、contracts、data/unit tests、freshness
+與 generated docs。這不代表 BigQuery、Airflow、GitHub Actions、MCP 或 Agent 已完成。
+
 ## 解決的問題
 
 平台同時處理兩類資料：需要逐筆可靠落地的訂單事件，以及需要依 event time 聚合的 API access logs。
@@ -41,6 +44,7 @@ flowchart LR
 - PostgreSQL 16、Kafka UI
 - confluent-kafka、Pydantic 2、pydantic-settings
 - SQLAlchemy 2、Alembic、psycopg
+- dbt-core 1.12、dbt-postgres 1.11（獨立 `data-platform` dependency group）
 - pytest、Ruff、mypy、Docker Compose
 
 ## Repository structure
@@ -50,10 +54,14 @@ apps/                  executable composition roots
 src/streaming_platform reusable models, Kafka/DB services, consumers and benchmark logic
 migrations/            Alembic schema migration
 scripts/               topic bootstrap, readiness, lag and Kafka smoke tools
+dbt/                   PostgreSQL source, staging, intermediate and mart models
+src/data_platform/     deterministic Phase 6 fixture support
 tests/unit/             isolated deterministic logic
 tests/integration/      real Kafka/PostgreSQL integration behavior
 tests/e2e/              executable process and recovery flows
-docs/                   architecture, reliability, benchmark and demo details
+tests/data_platform/    Phase 6 unit and local integration coverage
+docs/data-platform/     Phase 6 architecture, modeling, quality and runbook
+docs/                   Kafka architecture, reliability, benchmark and demo details
 reports/runs/           timestamped machine-readable reports
 ```
 
@@ -124,8 +132,9 @@ pyenv local kafka_streaming
 python --version
 pyenv version
 python -c "import sys; print(sys.executable)"
-python -m pip install -e . --group dev
+python -m pip install -e . --group dev --group data-platform
 cp .env.example .env
+cp dbt/profiles.yml.example dbt/profiles.yml
 ```
 
 Repository的`.python-version`已指定`kafka_streaming`；共享程式碼沒有寫死使用者的Python路徑。
@@ -161,6 +170,33 @@ Kafka UI位於 <http://localhost:8080>。`make topics`與`make migrate`都可安
 | `make benchmark-standard/benchmark-stress` | Standard／Stress profile |
 | `make demo` | Mixed、DLQ、lag recovery與uncommitted replay |
 | `make lint/typecheck/test` | 品質與完整tests |
+| `make data-platform-fixtures` | 經既有Kafka consumers載入可安全重跑的Phase 6 fixtures |
+| `make dbt-deps/debug/parse/compile` | 安裝與靜態驗證本機dbt project |
+| `make dbt-build/dbt-test/dbt-source-freshness` | 建置並驗證PostgreSQL data products |
+| `make dbt-docs` | 產生忽略於Git的dbt文件artifacts |
+| `make test-data-platform` | 執行Phase 6 Python unit/integration tests |
+
+## Phase 6 dbt data products
+
+dbt唯讀使用`public.valid_orders`、`public.processed_events`與`public.log_metrics_minute`。Models分為
+staging、intermediate與marts，預設分別寫入`analytics_local_staging`、
+`analytics_local_intermediate`與`analytics_local_marts`，不會寫入`public`。
+
+```bash
+make data-platform-fixtures
+make dbt-deps
+make dbt-debug
+make dbt-build
+make dbt-source-freshness
+make dbt-docs
+make test-data-platform
+```
+
+Order lifecycle依Kafka partition/offset決定latest known state；它不是財務最終結算狀態。Daily sales依
+currency分組且沒有FX conversion。Service health以response-time sum除以request count計算weighted
+average，沒有直接平均endpoint averages。PostgreSQL沒有raw application-log rows，因此無法提供request、
+client IP或individual latency analytics。完整定義見[Phase 6 runbook](docs/data-platform/phase-6.md)、
+[modeling semantics](docs/data-platform/modeling.md)與[data quality](docs/data-platform/quality.md)。
 
 ## Demo
 
@@ -298,9 +334,19 @@ make test
 
 ## Roadmap
 
-Post-MVP可研究CDC/outbox、stream processing、OLAP、observability與Kafka HA，但本repository目前沒有加入
-Flink、Spark、Debezium、Kafka Connect、Schema Registry、ClickHouse、Prometheus、Grafana、Kubernetes、
-Terraform或cloud infrastructure。
+Phase 1～5 Kafka Core與Phase 6 PostgreSQL dbt data products已實作。Phase 7、8A、8B、8C、9與10均未在
+本次工作開始；BigQuery、GCP、Airflow、GitHub Actions、MCP、Codex Skills、Agent與cloud infrastructure
+均不存在。其他post-MVP技術也不在目前實作範圍。
+
+| Phase | Status |
+|---|---|
+| Phase 6 | implemented |
+| Phase 7 | not started |
+| Phase 8A | not started |
+| Phase 8B | optional, not started |
+| Phase 8C | deferred |
+| Phase 9 | not started |
+| Phase 10 | not started |
 
 ## 面試展示重點
 

@@ -21,3 +21,9 @@ reports/*.log
 !reports/evidence/
 !reports/evidence/*.json
 !reports/.gitkeep
+dbt/profiles.yml
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+reports/data-quality/*.json

@@ -1,0 +1,103 @@
+version: 2
+
+sources:
+  - name: streaming_platform
+    description: Phase 1–5 PostgreSQL relations owned by the Kafka Core and read only to dbt.
+    schema: public
+    tables:
+      - name: valid_orders
+        description: One row per successfully persisted and validated order event.
+        loaded_at_field: created_at
+        freshness:
+          warn_after: {count: 30, period: minute}
+          error_after: {count: 120, period: minute}
+        data_tests:
+          - unique_combination:
+              arguments: {columns: [kafka_topic, kafka_partition, kafka_offset]}
+        columns:
+          - {name: event_id, description: Globally unique event identifier., data_tests: [not_null, unique]}
+          - {name: order_id, description: Order identifier used as the Kafka message key., data_tests: [not_null]}
+          - name: event_type
+            description: Persisted order event type.
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments: {values: [order_created, order_paid, order_cancelled, payment_failed]}
+          - {name: user_id, description: Pseudonymous user identifier., data_tests: [not_null]}
+          - name: product_id
+            description: Product identifier stored only for order_created.
+            data_tests:
+              - conditional_not_null:
+                  arguments: {condition: "event_type = 'order_created'"}
+          - name: quantity
+            description: Positive quantity stored only for order_created.
+            data_tests:
+              - positive_when_present
+              - conditional_not_null:
+                  arguments: {condition: "event_type = 'order_created'"}
+          - name: amount
+            description: Numeric event amount; absent for order_cancelled.
+            data_tests:
+              - positive_when_present
+              - conditional_not_null:
+                  arguments: {condition: "event_type in ('order_created', 'order_paid', 'payment_failed')"}
+          - name: currency
+            description: Event currency; absent for order_cancelled.
+            data_tests:
+              - accepted_values:
+                  arguments: {values: [TWD, USD]}
+                  config: {where: "currency is not null"}
+              - conditional_not_null:
+                  arguments: {condition: "event_type in ('order_created', 'order_paid', 'payment_failed')"}
+          - name: channel
+            description: Order channel stored only for order_created.
+            data_tests:
+              - accepted_values:
+                  arguments: {values: [web, ios, android]}
+                  config: {where: "channel is not null"}
+              - conditional_not_null:
+                  arguments: {condition: "event_type = 'order_created'"}
+          - {name: event_time, description: Timezone-aware business event timestamp., data_tests: [not_null]}
+          - {name: kafka_topic, description: Kafka source topic., data_tests: [not_null]}
+          - {name: kafka_partition, description: Kafka source partition., data_tests: [not_null, non_negative]}
+          - {name: kafka_offset, description: Kafka source offset., data_tests: [not_null, non_negative]}
+          - {name: created_at, description: PostgreSQL persistence timestamp., data_tests: [not_null]}
+
+      - name: processed_events
+        description: One idempotency marker per consumer group and event ID; not a business fact.
+        loaded_at_field: processed_at
+        freshness:
+          warn_after: {count: 30, period: minute}
+          error_after: {count: 120, period: minute}
+        data_tests:
+          - unique_combination:
+              arguments: {columns: [consumer_group, event_id]}
+        columns:
+          - {name: consumer_group, description: Consumer group owning the marker., data_tests: [not_null]}
+          - {name: event_id, description: Processed event identifier., data_tests: [not_null]}
+          - {name: topic, description: Kafka source topic., data_tests: [not_null]}
+          - {name: partition_id, description: Kafka source partition., data_tests: [not_null, non_negative]}
+          - {name: offset_id, description: Kafka source offset., data_tests: [not_null, non_negative]}
+          - {name: processed_at, description: Timezone-aware processing timestamp., data_tests: [not_null]}
+
+      - name: log_metrics_minute
+        description: Endpoint-level minute aggregates from API access logs; contains no raw request rows.
+        loaded_at_field: updated_at
+        freshness:
+          warn_after: {count: 30, period: minute}
+          error_after: {count: 120, period: minute}
+        data_tests:
+          - unique_combination:
+              arguments: {columns: [metric_minute, service, endpoint]}
+          - count_consistency
+        columns:
+          - {name: metric_minute, description: UTC minute bucket., data_tests: [not_null]}
+          - {name: service, description: Service name., data_tests: [not_null]}
+          - {name: endpoint, description: HTTP endpoint., data_tests: [not_null]}
+          - {name: request_count, description: Total access requests., data_tests: [not_null, non_negative]}
+          - {name: success_count, description: HTTP 100–399 count., data_tests: [not_null, non_negative]}
+          - {name: client_error_count, description: HTTP 400–499 count., data_tests: [not_null, non_negative]}
+          - {name: server_error_count, description: HTTP 500–599 count., data_tests: [not_null, non_negative]}
+          - {name: response_time_sum_ms, description: Sum of request response times in milliseconds., data_tests: [not_null, non_negative]}
+          - {name: max_response_time_ms, description: Maximum request response time in milliseconds., data_tests: [not_null, non_negative]}
+          - {name: updated_at, description: Latest aggregate update timestamp., data_tests: [not_null]}

@@ -1,0 +1,39 @@
+unit_tests:
+  - name: daily_sales_keeps_currencies_separate
+    model: mart_daily_sales
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {order_id: ORD-TWD, event_type: order_created, event_date: '2026-08-06', amount: '100.00', currency: TWD}
+          - {order_id: ORD-TWD, event_type: order_paid, event_date: '2026-08-06', amount: '100.00', currency: TWD}
+          - {order_id: ORD-USD, event_type: order_created, event_date: '2026-08-06', amount: '20.00', currency: USD}
+          - {order_id: ORD-USD, event_type: order_paid, event_date: '2026-08-06', amount: '20.00', currency: USD}
+      - input: ref('int_order_latest_state')
+        rows:
+          - {order_id: ORD-TWD, currency: TWD, channel: web}
+          - {order_id: ORD-USD, currency: USD, channel: ios}
+    expect:
+      rows:
+        - {event_date: '2026-08-06', currency: TWD, channel: web, created_order_count: 1, created_order_amount: '100.00', paid_order_count: 1, paid_amount: '100.00', payment_attempt_count: 1, payment_success_rate: '1.00000000000000000000'}
+        - {event_date: '2026-08-06', currency: USD, channel: ios, created_order_count: 1, created_order_amount: '20.00', paid_order_count: 1, paid_amount: '20.00', payment_attempt_count: 1, payment_success_rate: '1.00000000000000000000'}
+
+  - name: service_health_uses_weighted_response_time
+    model: mart_service_health
+    given:
+      - input: ref('int_service_minute_metrics')
+        rows:
+          - {metric_minute: '2026-08-06T00:00:00Z', metric_date: '2026-08-06', service: order-api, endpoint: /fast, request_count: 9, success_count: 9, client_error_count: 0, server_error_count: 0, response_time_sum_ms: 90, max_response_time_ms: 10}
+          - {metric_minute: '2026-08-06T00:00:00Z', metric_date: '2026-08-06', service: order-api, endpoint: /slow, request_count: 1, success_count: 0, client_error_count: 0, server_error_count: 1, response_time_sum_ms: 100, max_response_time_ms: 100}
+    expect:
+      rows:
+        - {service: order-api, request_count: 10, success_count: 9, server_error_count: 1, weighted_average_response_time_ms: '19.0000000000000000', max_response_time_ms: 100, endpoint_count: 2}
+
+  - name: service_health_zero_requests_returns_null_rates
+    model: mart_service_health
+    given:
+      - input: ref('int_service_minute_metrics')
+        rows:
+          - {metric_minute: '2026-08-06T00:00:00Z', metric_date: '2026-08-06', service: idle-api, endpoint: /health, request_count: 0, success_count: 0, client_error_count: 0, server_error_count: 0, response_time_sum_ms: 0, max_response_time_ms: 0}
+    expect:
+      rows:
+        - {service: idle-api, request_count: 0, success_rate: null, error_rate: null, weighted_average_response_time_ms: null}

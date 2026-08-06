@@ -1,0 +1,148 @@
+version: 2
+
+models:
+  - name: fct_order_events
+    description: "Grain: one row per order event_id. Contracted event fact with Kafka lineage and stream sequence."
+    meta: &orders_meta
+      owner: data-platform
+      domain: commerce
+      data_product: orders
+      maturity: experimental
+      contains_pii: true
+      sla: {freshness_minutes: 45, availability: best_effort}
+      contract_policy: breaking_changes_blocked
+    contract: {enforced: true}
+    columns:
+      - {name: event_id, data_type: uuid, description: Unique order event identifier., constraints: [{type: not_null}], data_tests: [not_null, unique]}
+      - {name: order_id, data_type: character varying(64), description: Order identifier., constraints: [{type: not_null}], data_tests: [not_null]}
+      - name: event_type
+        data_type: character varying(50)
+        description: Order event type.
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [order_created, order_paid, order_cancelled, payment_failed]}
+      - {name: user_id, data_type: character varying(64), description: Pseudonymous user identifier., constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: product_id, data_type: character varying(64), description: Product identifier on creation events.}
+      - {name: quantity, data_type: integer, description: Quantity on creation events.}
+      - {name: amount, data_type: numeric, description: Numeric amount when present.}
+      - {name: currency, data_type: character varying(3), description: TWD or USD when amount is present.}
+      - {name: channel, data_type: character varying(20), description: Creation channel when present.}
+      - {name: event_time, data_type: timestamp with time zone, description: Business event timestamp., constraints: [{type: not_null}]}
+      - {name: event_date, data_type: date, description: UTC event date., constraints: [{type: not_null}]}
+      - {name: kafka_topic, data_type: character varying(255), description: Kafka source topic., constraints: [{type: not_null}]}
+      - {name: kafka_partition, data_type: integer, description: Kafka source partition., constraints: [{type: not_null}]}
+      - {name: kafka_offset, data_type: bigint, description: Kafka source offset., constraints: [{type: not_null}]}
+      - {name: persisted_at, data_type: timestamp with time zone, description: PostgreSQL persistence timestamp., constraints: [{type: not_null}]}
+      - {name: event_sequence_number, data_type: bigint, description: Kafka stream order within the order., constraints: [{type: not_null}]}
+      - {name: previous_event_type, data_type: character varying(50), description: Previous stream event type.}
+      - {name: next_event_type, data_type: character varying(50), description: Next stream event type.}
+      - {name: previous_event_time, data_type: timestamp with time zone, description: Previous stream event business time.}
+      - {name: seconds_since_previous_event, data_type: numeric, description: Business-time delta from the previous stream event.}
+      - {name: first_event_time, data_type: timestamp with time zone, description: Business time on first stream event., constraints: [{type: not_null}]}
+      - {name: latest_event_time, data_type: timestamp with time zone, description: Business time on latest stream event., constraints: [{type: not_null}]}
+
+  - name: fct_orders
+    description: "Grain: one row per order_id. Latest known lifecycle state and independent historical flags; not settlement evidence."
+    meta: *orders_meta
+    contract: {enforced: true}
+    columns:
+      - {name: order_id, data_type: character varying(64), description: Unique order identifier., constraints: [{type: not_null}], data_tests: [not_null, unique]}
+      - {name: user_id, data_type: character varying(64), description: Pseudonymous user identifier., constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: product_id, data_type: character varying(64), description: Product on the first creation event.}
+      - {name: quantity, data_type: integer, description: Quantity on the first creation event.}
+      - {name: currency, data_type: character varying(3), description: Currency on the first creation event.}
+      - {name: channel, data_type: character varying(20), description: Channel on the first creation event.}
+      - {name: order_created_at, data_type: timestamp with time zone, description: Business time on first creation event.}
+      - {name: first_paid_at, data_type: timestamp with time zone, description: Business time on first paid event.}
+      - {name: latest_paid_at, data_type: timestamp with time zone, description: Business time on latest stream-ordered paid event.}
+      - {name: latest_payment_failed_at, data_type: timestamp with time zone, description: Business time on latest stream-ordered failed event.}
+      - {name: cancelled_at, data_type: timestamp with time zone, description: Business time on first cancellation event.}
+      - {name: latest_event_at, data_type: timestamp with time zone, description: Business time attached to latest Kafka-stream event., constraints: [{type: not_null}]}
+      - {name: latest_event_type, data_type: character varying(50), description: Latest Kafka-stream event type., constraints: [{type: not_null}]}
+      - name: latest_order_state
+        data_type: character varying(20)
+        description: Latest known state, not financial settlement.
+        constraints: [{type: not_null}]
+        data_tests:
+          - accepted_values:
+              arguments: {values: [created, paid, cancelled, payment_failed]}
+      - {name: original_order_amount, data_type: numeric, description: Amount on first creation event.}
+      - {name: latest_paid_amount, data_type: numeric, description: Amount on latest paid event; not recognized revenue.}
+      - {name: latest_paid_currency, data_type: character varying(3), description: Currency on latest paid event.}
+      - {name: payment_attempt_count, data_type: bigint, description: Count of paid and failed events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: payment_failure_count, data_type: bigint, description: Count of failed events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: order_event_count, data_type: bigint, description: Number of persisted order events., constraints: [{type: not_null}], data_tests: [positive_when_present]}
+      - {name: is_paid, data_type: boolean, description: Whether any paid event exists., constraints: [{type: not_null}]}
+      - {name: is_cancelled, data_type: boolean, description: Whether any cancelled event exists., constraints: [{type: not_null}]}
+
+  - name: mart_daily_sales
+    description: "Grain: one row per event_date, currency and channel. Event activity by currency; paid amount is not accounting revenue."
+    meta:
+      owner: data-platform
+      domain: commerce
+      data_product: daily-sales
+      maturity: experimental
+      contains_pii: false
+      sla: {freshness_minutes: 60, availability: best_effort}
+      contract_policy: breaking_changes_blocked
+    contract: {enforced: true}
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [event_date, currency, channel]}
+    columns:
+      - {name: event_date, data_type: date, description: UTC business event date., constraints: [{type: not_null}], data_tests: [not_null]}
+      - name: currency
+        data_type: character varying(3)
+        description: Currency grouping key; no FX conversion is applied.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [TWD, USD]}
+              config: {where: "currency is not null"}
+      - name: channel
+        data_type: character varying(20)
+        description: Channel from the order creation event when available.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [web, ios, android]}
+              config: {where: "channel is not null"}
+      - {name: created_order_count, data_type: bigint, description: Distinct orders with creation events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: created_order_amount, data_type: numeric, description: Sum of creation event amounts in this currency., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: paid_order_count, data_type: bigint, description: Distinct orders with paid events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: paid_amount, data_type: numeric, description: Sum of paid events; not accounting revenue., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: cancelled_order_count, data_type: bigint, description: Distinct orders with cancellation events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: payment_failed_order_count, data_type: bigint, description: Distinct orders with failed payment events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: payment_failed_amount, data_type: numeric, description: Sum of failed payment event amounts., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: payment_attempt_count, data_type: bigint, description: Count of paid plus failed events., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: payment_success_rate, data_type: numeric, description: Paid event count divided by payment attempts; null at zero attempts.}
+
+  - name: mart_service_health
+    description: "Grain: one row per metric_minute and service. Service health from endpoint minute aggregates, never raw request rows."
+    meta:
+      owner: data-platform
+      domain: platform-reliability
+      data_product: service-health
+      maturity: experimental
+      contains_pii: false
+      sla: {freshness_minutes: 45, availability: best_effort}
+      contract_policy: breaking_changes_blocked
+    contract: {enforced: true}
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [metric_minute, service]}
+      - count_consistency
+    columns:
+      - {name: metric_minute, data_type: timestamp with time zone, description: UTC minute bucket., constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: metric_date, data_type: date, description: UTC metric date., constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: service, data_type: character varying(100), description: Service grouping key., constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: request_count, data_type: bigint, description: Sum of endpoint request counts., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: success_count, data_type: bigint, description: Sum of endpoint success counts., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: client_error_count, data_type: bigint, description: Sum of endpoint client errors., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: server_error_count, data_type: bigint, description: Sum of endpoint server errors., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: error_count, data_type: bigint, description: Combined client and server errors., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: success_rate, data_type: numeric, description: Service success rate; null for zero requests.}
+      - {name: error_rate, data_type: numeric, description: Service error rate; null for zero requests.}
+      - {name: weighted_average_response_time_ms, data_type: numeric, description: Sum of response time divided by total requests; never an average of endpoint averages.}
+      - {name: max_response_time_ms, data_type: integer, description: Maximum endpoint response time., constraints: [{type: not_null}], data_tests: [non_negative]}
+      - {name: endpoint_count, data_type: bigint, description: Distinct endpoint count., constraints: [{type: not_null}], data_tests: [positive_when_present]}

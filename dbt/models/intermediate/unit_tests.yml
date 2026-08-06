@@ -1,0 +1,80 @@
+unit_tests:
+  - name: order_created_then_paid_latest_state
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000001', order_id: ORD-1, event_type: order_created, user_id: USR-1, product_id: PRD-1, quantity: 1, amount: '10.00', currency: TWD, channel: web, event_time: '2026-08-06T00:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000002', order_id: ORD-1, event_type: order_paid, user_id: USR-1, amount: '10.00', currency: TWD, event_time: '2026-08-06T00:01:00Z', event_sequence_number: 2}
+    expect:
+      rows:
+        - {order_id: ORD-1, latest_order_state: paid, payment_attempt_count: 1, payment_failure_count: 0, is_paid: true, is_cancelled: false}
+
+  - name: payment_failed_then_paid_is_recoverable
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000011', order_id: ORD-2, event_type: order_created, user_id: USR-2, product_id: PRD-2, quantity: 1, amount: '20.00', currency: USD, channel: ios, event_time: '2026-08-06T00:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000012', order_id: ORD-2, event_type: payment_failed, user_id: USR-2, amount: '20.00', currency: USD, event_time: '2026-08-06T00:01:00Z', event_sequence_number: 2}
+          - {event_id: '00000000-0000-0000-0000-000000000013', order_id: ORD-2, event_type: order_paid, user_id: USR-2, amount: '20.00', currency: USD, event_time: '2026-08-06T00:02:00Z', event_sequence_number: 3}
+    expect:
+      rows:
+        - {order_id: ORD-2, latest_order_state: paid, payment_attempt_count: 2, payment_failure_count: 1, is_paid: true}
+
+  - name: created_then_cancelled
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000021', order_id: ORD-3, event_type: order_created, user_id: USR-3, event_time: '2026-08-06T00:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000022', order_id: ORD-3, event_type: order_cancelled, user_id: USR-3, event_time: '2026-08-06T00:01:00Z', event_sequence_number: 2}
+    expect:
+      rows:
+        - {order_id: ORD-3, latest_order_state: cancelled, is_paid: false, is_cancelled: true}
+
+  - name: paid_then_cancelled_preserves_history
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000031', order_id: ORD-4, event_type: order_created, user_id: USR-4, event_time: '2026-08-06T00:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000032', order_id: ORD-4, event_type: order_paid, user_id: USR-4, amount: '30.00', currency: USD, event_time: '2026-08-06T00:01:00Z', event_sequence_number: 2}
+          - {event_id: '00000000-0000-0000-0000-000000000033', order_id: ORD-4, event_type: order_cancelled, user_id: USR-4, event_time: '2026-08-06T00:02:00Z', event_sequence_number: 3}
+    expect:
+      rows:
+        - {order_id: ORD-4, latest_order_state: cancelled, is_paid: true, is_cancelled: true}
+
+  - name: inconsistent_currency_remains_visible
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000041', order_id: ORD-5, event_type: order_created, user_id: USR-5, amount: '100.00', currency: TWD, event_time: '2026-08-06T00:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000042', order_id: ORD-5, event_type: order_paid, user_id: USR-5, amount: '10.00', currency: USD, event_time: '2026-08-06T00:01:00Z', event_sequence_number: 2}
+    expect:
+      rows:
+        - {order_id: ORD-5, currency: TWD, latest_paid_currency: USD, latest_order_state: paid}
+
+  - name: latest_selection_uses_stream_sequence_not_event_time
+    model: int_order_latest_state
+    given:
+      - input: ref('int_order_event_sequence')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000051', order_id: ORD-6, event_type: order_created, user_id: USR-6, event_time: '2026-08-06T02:00:00Z', event_sequence_number: 1}
+          - {event_id: '00000000-0000-0000-0000-000000000052', order_id: ORD-6, event_type: payment_failed, user_id: USR-6, amount: '10.00', currency: USD, event_time: '2026-08-06T01:00:00Z', event_sequence_number: 2}
+    expect:
+      rows:
+        - {order_id: ORD-6, latest_event_type: payment_failed, latest_order_state: payment_failed, latest_event_at: '2026-08-06T01:00:00Z'}
+
+  - name: duplicate_coordinate_has_deterministic_tiebreaker
+    model: int_order_event_sequence
+    given:
+      - input: ref('stg_order_events')
+        rows:
+          - {event_id: '00000000-0000-0000-0000-000000000062', order_id: ORD-7, event_type: order_paid, user_id: USR-7, event_time: '2026-08-06T00:01:00Z', kafka_topic: orders.v1, kafka_partition: 0, kafka_offset: 10}
+          - {event_id: '00000000-0000-0000-0000-000000000061', order_id: ORD-7, event_type: order_created, user_id: USR-7, event_time: '2026-08-06T00:00:00Z', kafka_topic: orders.v1, kafka_partition: 0, kafka_offset: 10}
+    expect:
+      rows:
+        - {event_id: '00000000-0000-0000-0000-000000000061', event_sequence_number: 1, previous_event_type: null, next_event_type: order_paid}
+        - {event_id: '00000000-0000-0000-0000-000000000062', event_sequence_number: 2, previous_event_type: order_created, next_event_type: null}

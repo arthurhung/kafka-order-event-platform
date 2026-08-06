@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: stg_order_events
+    description: "Grain: one row per event_id. Typed order events with Kafka lineage and no lifecycle aggregation."
+    columns:
+      - {name: event_id, description: Unique order event identifier., data_tests: [not_null, unique]}
+      - {name: order_id, description: Order identifier., data_tests: [not_null]}
+      - {name: event_type, description: Order lifecycle event type., data_tests: [not_null]}
+      - {name: user_id, description: Pseudonymous user identifier., data_tests: [not_null]}
+      - {name: product_id, description: Product identifier when stored.}
+      - {name: quantity, description: Quantity when stored.}
+      - {name: amount, description: Numeric event amount when stored.}
+      - {name: currency, description: Event currency when stored.}
+      - {name: channel, description: Creation channel when stored.}
+      - {name: event_time, description: Business event timestamp., data_tests: [not_null]}
+      - {name: event_date, description: UTC calendar date derived from event_time., data_tests: [not_null]}
+      - {name: kafka_topic, description: Kafka source topic., data_tests: [not_null]}
+      - {name: kafka_partition, description: Kafka source partition., data_tests: [not_null, non_negative]}
+      - {name: kafka_offset, description: Kafka source offset., data_tests: [not_null, non_negative]}
+      - {name: persisted_at, description: PostgreSQL persistence timestamp., data_tests: [not_null]}
+
+  - name: stg_processed_events
+    description: "Grain: one row per consumer_group and event_id. Typed operational idempotency evidence."
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [consumer_group, event_id]}
+    columns:
+      - {name: consumer_group, description: Consumer group., data_tests: [not_null]}
+      - {name: event_id, description: Processed event identifier., data_tests: [not_null]}
+      - {name: kafka_topic, description: Kafka source topic., data_tests: [not_null]}
+      - {name: kafka_partition, description: Kafka source partition., data_tests: [not_null, non_negative]}
+      - {name: kafka_offset, description: Kafka source offset., data_tests: [not_null, non_negative]}
+      - {name: processed_at, description: Processing timestamp., data_tests: [not_null]}
+
+  - name: stg_log_metrics_minute
+    description: "Grain: one row per metric_minute, service and endpoint. Typed minute aggregates, not raw logs."
+    data_tests: [count_consistency]
+    columns:
+      - {name: metric_minute, description: UTC minute bucket., data_tests: [not_null]}
+      - {name: metric_date, description: UTC calendar date., data_tests: [not_null]}
+      - {name: service, description: Service name., data_tests: [not_null]}
+      - {name: endpoint, description: Endpoint., data_tests: [not_null]}
+      - {name: request_count, description: Total requests., data_tests: [not_null, non_negative]}
+      - {name: success_count, description: HTTP 100–399 requests., data_tests: [not_null, non_negative]}
+      - {name: client_error_count, description: HTTP 400–499 requests., data_tests: [not_null, non_negative]}
+      - {name: server_error_count, description: HTTP 500–599 requests., data_tests: [not_null, non_negative]}
+      - {name: response_time_sum_ms, description: Total response time in milliseconds., data_tests: [not_null, non_negative]}
+      - {name: average_response_time_ms, description: Safe endpoint average; null for zero requests.}
+      - {name: max_response_time_ms, description: Maximum response time in milliseconds., data_tests: [not_null, non_negative]}
+      - {name: updated_at, description: Aggregate update timestamp., data_tests: [not_null]}

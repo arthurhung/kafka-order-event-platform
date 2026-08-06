@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: int_order_event_sequence
+    description: "Grain: one row per event_id. Orders events by Kafka partition/offset; event_time remains business time and may move backwards."
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [kafka_topic, kafka_partition, kafka_offset]}
+    columns:
+      - {name: event_id, description: Unique event identifier., data_tests: [not_null, unique]}
+      - {name: order_id, description: Order identifier., data_tests: [not_null]}
+      - {name: event_sequence_number, description: One-based Kafka stream sequence within an order., data_tests: [not_null, positive_when_present]}
+      - {name: previous_event_type, description: Previous stream-ordered event type.}
+      - {name: next_event_type, description: Next stream-ordered event type.}
+      - {name: previous_event_time, description: Business time on the previous stream event.}
+      - {name: seconds_since_previous_event, description: Business-time delta; may be negative for late events.}
+      - {name: first_event_time, description: Business time attached to the first stream event., data_tests: [not_null]}
+      - {name: latest_event_time, description: Business time attached to the latest stream event., data_tests: [not_null]}
+
+  - name: int_order_latest_state
+    description: "Grain: one row per order_id. Latest known Kafka-stream state plus historical flags; not a financial final settlement state."
+    columns:
+      - {name: order_id, description: Unique order identifier., data_tests: [not_null, unique]}
+      - {name: user_id, description: First stream-observed user identifier., data_tests: [not_null]}
+      - {name: currency, description: Currency on the first order_created event when present.}
+      - {name: latest_event_type, description: Latest Kafka-stream event type., data_tests: [not_null]}
+      - name: latest_order_state
+        description: Latest known lifecycle state, not settlement status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [created, paid, cancelled, payment_failed]}
+      - {name: payment_attempt_count, description: Count of paid plus failed events., data_tests: [not_null, non_negative]}
+      - {name: payment_failure_count, description: Count of failed payment events., data_tests: [not_null, non_negative]}
+      - {name: is_paid, description: True if any order_paid event exists., data_tests: [not_null]}
+      - {name: is_cancelled, description: True if any order_cancelled event exists., data_tests: [not_null]}
+
+  - name: int_service_minute_metrics
+    description: "Grain: one row per metric_minute, service and endpoint. Minute counts with safe endpoint-level rates."
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [metric_minute, service, endpoint]}
+      - count_consistency
+    columns:
+      - {name: success_rate, description: Success count divided by requests; null when requests are zero.}
+      - {name: client_error_rate, description: Client error count divided by requests; null at zero.}
+      - {name: server_error_rate, description: Server error count divided by requests; null at zero.}
+      - {name: error_rate, description: Combined client/server error rate; null at zero.}
