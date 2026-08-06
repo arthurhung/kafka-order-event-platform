@@ -51,3 +51,11 @@ relations. Cleanup is allowlisted to those run-specific prefixes and never match
 When a base revision cannot be resolved, the runner records `full_ci_fallback` and performs a
 complete current build. State and diagnostic artifacts are written below ignored `dbt/target/`
 and `reports/data-quality/`; existing local artifacts are not treated as previous CI state.
+
+## Phase 8A local policy path
+
+Phase 8A adds a separate local policy path around a fresh dbt manifest. It validates published-model
+metadata and bounded query fixtures, evaluates fixed cost fixtures, records policy changes, and uses
+a pure-Python orchestration contract to propagate quality-gate failures. Its GitHub Actions job runs
+after but does not alter the Phase 7 job. No BigQuery adapter, GCP provider, cloud task, or production
+scheduler is part of this path.

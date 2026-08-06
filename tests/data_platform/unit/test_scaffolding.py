@@ -49,6 +49,9 @@ def test_scaffold_generates_explicit_draft_without_guessing(tmp_path: Path):
     assert "scaffold_status: draft" in yaml
     assert "owner: data-platform" in yaml
     assert "one row per event_date and user_id" in yaml
+    assert "bigquery: planned" in yaml
+    assert "static_validated" not in yaml
+    assert "BLOCKING_TODO: declare verified partition" in yaml
     assert "select *" not in result.sql_path.read_text().lower()
 
 

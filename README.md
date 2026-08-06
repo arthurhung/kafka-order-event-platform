@@ -5,9 +5,10 @@ transaction、idempotent consumer、bounded retry、DLQ、每分鐘日誌聚合�
 benchmark。它是一個作品集與面試展示專案，不是 production-ready 系統。
 
 Phase 6 已在既有 PostgreSQL sources 上加入本機 dbt data products、contracts、data/unit tests、freshness
-與 generated docs。Phase 7 已加入 draft scaffold、deterministic convention/contract checks、dbt state-based
-local Slim CI 與 GitHub Actions workflow。Workflow 定義本身不是遠端執行證據；驗收必須另行檢查
-對應 commit 的 successful GitHub Actions run 與 artifacts。
+與 generated docs。Phase 7 的 draft scaffold、deterministic convention/contract checks與dbt state-based
+Slim CI已由指定commit的GitHub Actions run接受。Phase 8A加入本機BigQuery compatibility metadata、
+partition/cluster/SQL policies、fixture cost guardrails與純Python orchestration contract；它沒有執行
+BigQuery，也不是BigQuery runtime acceptance。
 
 ## 解決的問題
 
@@ -181,6 +182,11 @@ Kafka UI位於 <http://localhost:8080>。`make topics`與`make migrate`都可安
 | `make dbt-validate-conventions` | 從fresh manifest驗證layer、metadata、docs與SQL conventions |
 | `make dbt-contract-check` | 驗證pass與blocking contract-change scenarios |
 | `make dbt-slim-ci-local` | 驗證modified+／defer selection與明示full fallback |
+| `make bigquery-static-validate/bigquery-partition-policy` | 從fresh manifest驗證Phase 8A本機政策 |
+| `make bigquery-cost-policy/bigquery-cost-report` | 評估固定fixture並明確標示simulated |
+| `make test-bigquery-policy` | 執行metadata、SQL、cost、provider與policy-diff tests |
+| `make phase8a-orchestration-validate` | 驗證Airflow runtime為not_available時的本機orchestration contract |
+| `make data-platform-phase8a-local` | 產生run-specific Phase 8A reports與summary |
 
 ## Phase 6 dbt data products
 
@@ -214,8 +220,22 @@ mart grain/owner/SLO/contract/column docs、錯誤direct source使用與publishe
 
 Local Slim CI在隔離`analytics_ci_*`schemas建立base relations，再以dbt原生
 `state:modified+ --defer --state`建置current modified models與downstream。無previous state時明確執行
-full build fallback。詳細操作見[Phase 7 runbook](docs/data-platform/phase-7.md)。Committed workflow尚無真實
-GitHub run evidence，因此目前只能宣稱local implementation complete，不能宣稱Phase 7 accepted。
+full build fallback。詳細操作見[Phase 7 runbook](docs/data-platform/phase-7.md)。Commit `6e694ad`的
+GitHub Actions `phase7` job與artifact已成功觀察，因此Phase 7已accepted。
+
+## Phase 8A local compatibility and cost policy
+
+四個published models宣告BigQuery status為`planned`。Fresh-manifest validator通過後，report才計算
+`effective_status: static_validated`。Partitioned models強制bounded partition predicates；`fct_orders`
+使用有期限的non-partitioned exemption。SQL lexer會將現有PostgreSQL-only syntax列為warning，不會因此
+改寫Phase 6 grain、metrics、currency或lifecycle語意。
+
+Cost reports只使用固定fixture，`evidence_level=simulated`、
+`estimation_method=fixture_estimated`且`observed_job_id=null`。Sandbox／Cloud providers在本階段回傳
+`not_available`，不會fallback成fixture。完整限制與commands見
+[Phase 8A runbook](docs/data-platform/phase-8a.md)。No GCP credentials were used. No Billing account was
+required. No BigQuery query or dry run was executed. Fixture estimates are not BigQuery optimizer
+results.
 
 ## Demo
 
@@ -353,15 +373,14 @@ make test
 
 ## Roadmap
 
-Phase 1～5 Kafka Core與Phase 6 PostgreSQL dbt data products已實作。Phase 7 implementation已完成；
-最終驗收以對應 commit 的 successful GitHub Actions run 與必要 artifacts為準。後續階段均未開始；
-其他post-MVP技術也不在目前實作範圍。
+Phase 1～7已accepted。Phase 8A本機實作完成，仍等待本次變更的GitHub Actions evidence；後續與optional
+cloud階段均未開始。其他post-MVP技術也不在目前實作範圍。
 
 | Phase | Status |
 |---|---|
 | Phase 6 | implemented |
-| Phase 7 | implemented; acceptance requires successful GitHub CI evidence |
-| Phase 8A | not started |
+| Phase 7 | accepted; successful GitHub CI evidence observed for `6e694ad` |
+| Phase 8A | local implementation complete; GitHub CI evidence pending |
 | Phase 8B | optional, not started |
 | Phase 8C | deferred |
 | Phase 9 | not started |

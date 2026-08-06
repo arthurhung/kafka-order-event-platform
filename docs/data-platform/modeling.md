@@ -48,3 +48,12 @@ layer and supplies metadata and contract structure, but it does not select sourc
 models, columns, business keys, monetary semantics, or transformations. Missing decisions stay
 as `BLOCKING_TODO` markers and convention validation fails until a developer replaces them with
 verified definitions. Existing Phase 6 model SQL and contract semantics remain unchanged.
+
+## Phase 8A physical-design declarations
+
+BigQuery fields in mart metadata describe future physical design only. Daily sales and service
+health plan bounded partition overwrite to preserve their existing aggregate grains. Order events
+plan an `event_id` merge while retaining Kafka-coordinate lifecycle order. `fct_orders` is exempt
+from partitioning because a mutable latest-state row has no stable calendar partition. These
+declarations do not change PostgreSQL materialization, contract columns, money, currency grouping,
+or lifecycle semantics and have not been executed by BigQuery.

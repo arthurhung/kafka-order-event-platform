@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "fixture_name": "valid_waiver",
+  "query_id": "mart_daily_sales_migration",
+  "model": "mart_daily_sales",
+  "valid": true,
+  "total_bytes_processed": 700000000,
+  "partition_filter_present": true,
+  "requested_scan_window_days": 31,
+  "maximum_scan_window_days": 31,
+  "waiver": {
+    "owner": "data-platform",
+    "reason": "bounded migration validation",
+    "expires_at": "2099-01-01T00:00:00Z",
+    "approved_threshold_bytes": 805306368
+  }
+}

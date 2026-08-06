@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture_name": "above_blocking",
+  "query_id": "mart_daily_sales_above_blocking",
+  "model": "mart_daily_sales",
+  "valid": true,
+  "total_bytes_processed": 600000000,
+  "partition_filter_present": true,
+  "requested_scan_window_days": 7,
+  "maximum_scan_window_days": 31,
+  "waiver": null
+}

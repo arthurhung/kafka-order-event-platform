@@ -3,7 +3,7 @@ version: 2
 models:
   - name: fct_order_events
     description: "Grain: one row per order event_id. Contracted event fact with Kafka lineage and stream sequence."
-    meta: &orders_meta
+    meta:
       owner: data-platform
       domain: commerce
       data_product: orders
@@ -11,6 +11,21 @@ models:
       contains_pii: true
       sla: {freshness_minutes: 45, availability: best_effort}
       contract_policy: breaking_changes_blocked
+      warehouse_compatibility: {postgres: supported, bigquery: planned}
+      bigquery:
+        validation_evidence_level: static_validation
+        partition_by: {field: event_date, data_type: date, granularity: day}
+        cluster_by: [order_id, event_type]
+        require_partition_filter: true
+        incremental:
+          expected_strategy: merge
+          unique_key: [event_id]
+          merge_key: event_id
+          late_arriving_data:
+            lookback_days: 7
+            outside_window_action: manual_bounded_backfill
+        maximum_expected_scan_window_days: 31
+        cost_class: high
     contract: {enforced: true}
     columns:
       - {name: event_id, data_type: uuid, description: Unique order event identifier., constraints: [{type: not_null}], data_tests: [not_null, unique]}
@@ -45,7 +60,33 @@ models:
 
   - name: fct_orders
     description: "Grain: one row per order_id. Latest known lifecycle state and independent historical flags; not settlement evidence."
-    meta: *orders_meta
+    meta:
+      owner: data-platform
+      domain: commerce
+      data_product: orders
+      maturity: experimental
+      contains_pii: true
+      sla: {freshness_minutes: 45, availability: best_effort}
+      contract_policy: breaking_changes_blocked
+      warehouse_compatibility: {postgres: supported, bigquery: planned}
+      bigquery:
+        validation_evidence_level: static_validation
+        partition_by: null
+        partition_exemption:
+          reason: mutable latest-state row has no stable calendar partition key
+          owner: data-platform
+          review_at: "2027-08-06T00:00:00Z"
+        cluster_by: [order_id]
+        require_partition_filter: false
+        incremental:
+          expected_strategy: merge
+          unique_key: [order_id]
+          merge_key: order_id
+          late_arriving_data:
+            lookback_days: 7
+            outside_window_action: manual_bounded_backfill
+        maximum_expected_scan_window_days: 31
+        cost_class: low_lookup
     contract: {enforced: true}
     columns:
       - {name: order_id, data_type: character varying(64), description: Unique order identifier., constraints: [{type: not_null}], data_tests: [not_null, unique]}
@@ -87,6 +128,21 @@ models:
       contains_pii: false
       sla: {freshness_minutes: 60, availability: best_effort}
       contract_policy: breaking_changes_blocked
+      warehouse_compatibility: {postgres: supported, bigquery: planned}
+      bigquery:
+        validation_evidence_level: static_validation
+        partition_by: {field: event_date, data_type: date, granularity: day}
+        cluster_by: [currency, channel]
+        require_partition_filter: true
+        incremental:
+          expected_strategy: insert_overwrite
+          unique_key: [event_date, currency, channel]
+          merge_key: null
+          late_arriving_data:
+            lookback_days: 7
+            outside_window_action: manual_bounded_backfill
+        maximum_expected_scan_window_days: 31
+        cost_class: medium
     contract: {enforced: true}
     data_tests:
       - unique_combination:
@@ -127,6 +183,21 @@ models:
       contains_pii: false
       sla: {freshness_minutes: 45, availability: best_effort}
       contract_policy: breaking_changes_blocked
+      warehouse_compatibility: {postgres: supported, bigquery: planned}
+      bigquery:
+        validation_evidence_level: static_validation
+        partition_by: {field: metric_date, data_type: date, granularity: day}
+        cluster_by: [service]
+        require_partition_filter: true
+        incremental:
+          expected_strategy: insert_overwrite
+          unique_key: [metric_minute, service]
+          merge_key: null
+          late_arriving_data:
+            lookback_days: 2
+            outside_window_action: manual_bounded_backfill
+        maximum_expected_scan_window_days: 7
+        cost_class: low
     contract: {enforced: true}
     data_tests:
       - unique_combination:

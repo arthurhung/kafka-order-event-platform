@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture_name": "oversized_scan_window",
+  "query_id": "mart_daily_sales_90d",
+  "model": "mart_daily_sales",
+  "valid": true,
+  "total_bytes_processed": 104857600,
+  "partition_filter_present": true,
+  "requested_scan_window_days": 90,
+  "maximum_scan_window_days": 31,
+  "waiver": null
+}

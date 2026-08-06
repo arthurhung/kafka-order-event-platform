@@ -111,6 +111,20 @@ def scaffold_model(
         "DOMAIN": request.domain.strip(),
         "GRAIN": request.grain.strip(),
         "LAYER": request.layer,
+        "BIGQUERY_METADATA": (
+            "      warehouse_compatibility:\n"
+            "        postgres: supported\n"
+            "        bigquery: planned\n"
+            "      bigquery:\n"
+            "        validation_evidence_level: static_validation\n"
+            "        # BLOCKING_TODO: declare verified partition, cluster, incremental, "
+            "scan-window, and cost policy.\n"
+            "        partition_by: null\n"
+            "        cluster_by: []\n"
+            "        require_partition_filter: false"
+            if request.layer == "marts"
+            else ""
+        ),
     }
     sql = _render_template(sql_template, replacements)
     yaml = _render_template(yaml_template, replacements)

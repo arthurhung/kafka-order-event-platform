@@ -5,7 +5,10 @@
 	benchmark-smoke benchmark-standard benchmark-stress demo \
 	dbt-deps dbt-debug dbt-parse dbt-compile dbt-build dbt-test dbt-source-freshness \
 	dbt-docs data-platform-fixtures test-data-platform dbt-scaffold-smoke \
-	dbt-validate-conventions dbt-contract-check dbt-slim-ci-local
+	dbt-validate-conventions dbt-contract-check dbt-slim-ci-local \
+	bigquery-static-validate bigquery-partition-policy bigquery-cost-policy \
+	bigquery-cost-report test-bigquery-policy data-platform-phase8a-local \
+	phase8a-orchestration-validate test-phase8a-orchestration
 
 -include .env
 export
@@ -31,6 +34,9 @@ help:
 	@echo "  dbt-build / dbt-test / dbt-source-freshness / dbt-docs / test-data-platform"
 	@echo "  dbt-scaffold-smoke / dbt-validate-conventions / dbt-contract-check"
 	@echo "  dbt-slim-ci-local (state selection, defer, and full fallback evidence)"
+	@echo "  bigquery-static-validate / bigquery-partition-policy / bigquery-cost-policy"
+	@echo "  bigquery-cost-report / test-bigquery-policy / data-platform-phase8a-local"
+	@echo "  phase8a-orchestration-validate / test-phase8a-orchestration"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -196,3 +202,47 @@ dbt-slim-ci-local:
 		--contract-report reports/data-quality/phase7-fallback-contract-diff.json
 	$(PYTHON) scripts/data_platform/run_slim_ci.py --base-ref HEAD \
 		--run-id local_state_$$(date -u +%Y%m%d%H%M%S)_$$$$
+
+bigquery-static-validate:
+	$(PYTHON) scripts/data_platform/run_phase8a_validation.py \
+		--run-id static_$$(date -u +%Y%m%d%H%M%S)_$$$$
+
+bigquery-partition-policy:
+	$(PYTHON) scripts/data_platform/run_phase8a_validation.py \
+		--run-id partition_$$(date -u +%Y%m%d%H%M%S)_$$$$
+
+bigquery-cost-policy:
+	@phase8a_report=$$(mktemp); \
+	trap 'rm -f "$$phase8a_report"' EXIT; \
+	$(PYTHON) scripts/data_platform/evaluate_bigquery_cost_policy.py \
+		--policy config/data_platform/bigquery_cost_policy.json \
+		--fixture tests/data_platform/fixtures/bigquery_dry_run/below_warning.json \
+		--report "$$phase8a_report"
+
+bigquery-cost-report:
+	@phase8a_report=$$(mktemp); \
+	trap 'rm -f "$$phase8a_report"' EXIT; \
+	$(PYTHON) scripts/data_platform/run_bigquery_dry_run.py \
+		--provider local_fixture \
+		--fixture tests/data_platform/fixtures/bigquery_dry_run/below_warning.json \
+		--policy config/data_platform/bigquery_cost_policy.json \
+		--report "$$phase8a_report"
+
+phase8a-orchestration-validate:
+	@phase8a_report=$$(mktemp); \
+	trap 'rm -f "$$phase8a_report"' EXIT; \
+	$(PYTHON) scripts/data_platform/validate_phase8a_orchestration.py \
+		--contract config/data_platform/phase8a_dag_contract.json \
+		--report "$$phase8a_report"
+
+test-bigquery-policy:
+	$(PYTHON) -m pytest tests/data_platform/unit/test_bigquery_*.py \
+		tests/data_platform/unit/test_phase8a_*.py \
+		tests/data_platform/integration/test_phase8a_local.py
+
+test-phase8a-orchestration:
+	$(PYTHON) -m pytest tests/data_platform/unit/test_phase8a_orchestration.py
+
+data-platform-phase8a-local:
+	$(PYTHON) scripts/data_platform/run_phase8a_validation.py \
+		--run-id local_$$(date -u +%Y%m%d%H%M%S)_$$$$

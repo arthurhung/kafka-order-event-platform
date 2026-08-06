@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture_name": "exactly_warning",
+  "query_id": "mart_daily_sales_warning",
+  "model": "mart_daily_sales",
+  "valid": true,
+  "total_bytes_processed": 268435456,
+  "partition_filter_present": true,
+  "requested_scan_window_days": 7,
+  "maximum_scan_window_days": 31,
+  "waiver": null
+}

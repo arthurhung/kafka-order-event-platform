@@ -27,3 +27,5 @@ dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
 reports/data-quality/*.json
+reports/data-quality/phase8a/
+reports/cost/*.json

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "dag_id": "retail_data_platform_validation",
+  "schedule": null,
+  "tasks": [
+    {"id": "validate_environment", "retries": 1, "timeout_seconds": 60},
+    {"id": "dbt_parse", "retries": 1, "timeout_seconds": 120},
+    {"id": "dbt_compile", "retries": 1, "timeout_seconds": 180},
+    {"id": "validate_conventions", "retries": 0, "timeout_seconds": 60},
+    {"id": "validate_bigquery_policy", "retries": 0, "timeout_seconds": 60},
+    {"id": "evaluate_fixture_cost", "retries": 0, "timeout_seconds": 60},
+    {"id": "quality_gate", "retries": 0, "timeout_seconds": 30},
+    {"id": "publish_local_reports", "retries": 1, "timeout_seconds": 60}
+  ],
+  "cloud_tasks": [],
+  "credentials_required": false
+}

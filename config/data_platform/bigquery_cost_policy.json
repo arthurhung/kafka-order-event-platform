@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "default": {
+    "warning_threshold_bytes": 536870912,
+    "blocking_threshold_bytes": 1073741824,
+    "cost_class": "default"
+  },
+  "models": {
+    "mart_daily_sales": {
+      "warning_threshold_bytes": 268435456,
+      "blocking_threshold_bytes": 536870912,
+      "cost_class": "medium"
+    },
+    "mart_service_health": {
+      "warning_threshold_bytes": 134217728,
+      "blocking_threshold_bytes": 268435456,
+      "cost_class": "low"
+    },
+    "fct_order_events": {
+      "warning_threshold_bytes": 536870912,
+      "blocking_threshold_bytes": 1073741824,
+      "cost_class": "high"
+    },
+    "fct_orders": {
+      "warning_threshold_bytes": 134217728,
+      "blocking_threshold_bytes": 268435456,
+      "cost_class": "low_lookup"
+    }
+  }
+}

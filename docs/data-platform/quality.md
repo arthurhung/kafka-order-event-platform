@@ -39,3 +39,9 @@ does not claim that manifest comparison can prove business-semantic equivalence.
 Slim CI evidence records the base/current Git identities, state mode, selected models, command
 exit codes, bounded sanitized output, and report paths. A missing base produces a named full-build
 fallback rather than an empty or falsely successful state selection.
+
+Phase 8A adds separate compatibility, partition/cluster, SQL, cost, provider, policy-diff, and
+orchestration gates. Manifest and SQL-policy evidence is `static_validation`; fixed byte estimates
+are `simulated`. Missing estimates remain null. Unsupported cloud providers return `not_available`,
+and any blocking result prevents a passed aggregate summary. Existing intermediate wildcard
+warnings and the Phase 7 contract/Slim CI report semantics remain unchanged.

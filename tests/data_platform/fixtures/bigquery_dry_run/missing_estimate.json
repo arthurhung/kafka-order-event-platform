@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture_name": "missing_estimate",
+  "query_id": "mart_daily_sales_unknown",
+  "model": "mart_daily_sales",
+  "valid": true,
+  "total_bytes_processed": null,
+  "partition_filter_present": true,
+  "requested_scan_window_days": 7,
+  "maximum_scan_window_days": 31,
+  "waiver": null
+}
