@@ -24,7 +24,7 @@ from streaming_platform.generator.factory import EventFactory, InvalidKind
 from streaming_platform.kafka.consumer import OrderKafkaConsumer
 from streaming_platform.kafka.dlq import DlqProducer
 from streaming_platform.models import EventType
-from tests.integration.kafka_helpers import ensure_test_topics_ready
+from tests.integration.kafka_helpers import ensure_test_infrastructure, ensure_test_topics_ready
 from tests.integration.test_order_consumer import produce
 
 pytestmark = pytest.mark.e2e
@@ -131,13 +131,7 @@ def committed_offset(settings: Settings, position: TopicPartition) -> int:
 
 
 def test_order_consumer_end_to_end_and_uncommitted_restart() -> None:
-    subprocess.run(
-        ["docker", "compose", "up", "-d", "kafka", "postgres", "kafka-ui"],  # noqa: S607
-        check=True,
-        timeout=120,
-    )
-    subprocess.run([sys.executable, "scripts/wait_for_services.py"], check=True, timeout=120)
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, timeout=60)
+    ensure_test_infrastructure()
     get_settings.cache_clear()
     suffix = uuid4().hex
     settings = get_settings().model_copy(

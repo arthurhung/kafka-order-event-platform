@@ -460,12 +460,21 @@ def run_slim_ci(
                 evidence=evidence,
             )
             if run_python_checks:
+                python_environment = environment | {
+                    "DBT_TARGET": "local",
+                    "DBT_TARGET_SCHEMA": "analytics_local",
+                }
                 for command in (
                     ("make", "lint"),
                     ("make", "typecheck"),
                     ("make", "test"),
                 ):
-                    _run(command, cwd=repo_root, environment=environment, evidence=evidence)
+                    _run(
+                        command,
+                        cwd=repo_root,
+                        environment=python_environment,
+                        evidence=evidence,
+                    )
         cleanup_ci_schemas(environment, (base_schema, current_schema))
         result = SlimCIResult(
             status="passed",

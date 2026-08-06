@@ -18,7 +18,7 @@ from streaming_platform.config import Settings, get_settings
 from streaming_platform.database.models import LogMetricMinute, ProcessedEvent
 from streaming_platform.database.session import create_database_engine, create_session_factory
 from streaming_platform.models import ApiAccessLogEvent, ApiAccessLogPayload
-from tests.integration.kafka_helpers import ensure_test_topics_ready
+from tests.integration.kafka_helpers import ensure_test_infrastructure, ensure_test_topics_ready
 from tests.integration.test_log_consumer import produce, tail_dlq
 
 pytestmark = pytest.mark.e2e
@@ -119,13 +119,7 @@ def committed_offset(settings: Settings, position: TopicPartition) -> int:
 
 
 def test_log_consumer_shutdown_flush_restart_and_continued_processing() -> None:
-    subprocess.run(
-        ["docker", "compose", "up", "-d", "kafka", "postgres", "kafka-ui"],  # noqa: S607
-        check=True,
-        timeout=120,
-    )
-    subprocess.run([sys.executable, "scripts/wait_for_services.py"], check=True, timeout=120)
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, timeout=60)
+    ensure_test_infrastructure()
     get_settings.cache_clear()
     suffix = uuid4().hex
     settings = get_settings().model_copy(

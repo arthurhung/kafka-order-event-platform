@@ -1,5 +1,8 @@
 """Kafka readiness helpers shared by real-service tests."""
 
+import os
+import subprocess
+import sys
 from time import monotonic, sleep
 from uuid import uuid4
 
@@ -7,6 +10,24 @@ from confluent_kafka import Consumer, KafkaError, KafkaException, Message, Topic
 
 from streaming_platform.config import Settings
 from streaming_platform.kafka.admin import ensure_topics
+
+
+def ensure_test_infrastructure() -> None:
+    """Start managed test services unless CI has already provisioned them."""
+    infrastructure_mode = os.environ.get("BENCHMARK_INFRASTRUCTURE_MODE", "managed")
+    if infrastructure_mode == "preprovisioned":
+        return
+    if infrastructure_mode != "managed":
+        raise ValueError(
+            "BENCHMARK_INFRASTRUCTURE_MODE must be 'managed' or 'preprovisioned'"
+        )
+    subprocess.run(
+        ["docker", "compose", "up", "-d", "kafka", "postgres", "kafka-ui"],  # noqa: S607
+        check=True,
+        timeout=120,
+    )
+    subprocess.run([sys.executable, "scripts/wait_for_services.py"], check=True, timeout=120)
+    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, timeout=60)
 
 
 class ManuallyAssignedConsumer:
