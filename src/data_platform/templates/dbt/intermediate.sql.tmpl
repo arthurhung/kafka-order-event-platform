@@ -1,0 +1,13 @@
+{{ config(materialized='view') }}
+
+-- Scaffold status: draft.
+-- BLOCKING_TODO: choose explicit upstream ref() models; no dependency was guessed.
+with transformed as (
+    select
+        -- BLOCKING_TODO: implement reusable logic with explicit output columns.
+        null as scaffold_placeholder
+)
+
+select
+    scaffold_placeholder
+from transformed

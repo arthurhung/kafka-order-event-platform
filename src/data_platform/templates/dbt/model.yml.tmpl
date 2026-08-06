@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: {{ MODEL_NAME }}
+    description: "Grain: {{ GRAIN }}. BLOCKING_TODO: describe verified model semantics."
+    meta:
+      owner: {{ OWNER }}
+      domain: {{ DOMAIN }}
+      data_product: {{ MODEL_NAME }}
+      maturity: experimental
+      contains_pii: false
+      sla:
+        freshness_minutes: 60
+        availability: best_effort
+      contract_policy: breaking_changes_blocked
+      scaffold_status: draft
+    contract:
+      enforced: true
+    # BLOCKING_TODO: add grain uniqueness and required data tests using verified columns.
+    data_tests: []
+    # BLOCKING_TODO: replace with explicit names, data types, descriptions, constraints, and tests.
+    columns: []

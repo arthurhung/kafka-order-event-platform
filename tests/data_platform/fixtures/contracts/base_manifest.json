@@ -1,0 +1,39 @@
+{
+  "child_map": {
+    "model.retail_data_platform.mart_orders": ["model.retail_data_platform.mart_order_summary"],
+    "model.retail_data_platform.mart_order_summary": []
+  },
+  "nodes": {
+    "model.retail_data_platform.mart_orders": {
+      "columns": {
+        "order_id": {
+          "constraints": [{"type": "not_null"}],
+          "data_type": "character varying(64)",
+          "description": "Order identifier."
+        },
+        "paid_amount": {
+          "constraints": [],
+          "data_type": "numeric",
+          "description": "Paid event amount."
+        }
+      },
+      "config": {"materialized": "table", "unique_key": null},
+      "contract": {"enforced": true},
+      "description": "Grain: one row per order_id. Orders.",
+      "meta": {"owner": "data-platform", "sla": {"freshness_minutes": 60}},
+      "name": "mart_orders",
+      "original_file_path": "models/marts/mart_orders.sql",
+      "resource_type": "model"
+    },
+    "model.retail_data_platform.mart_order_summary": {
+      "columns": {"order_id": {"data_type": "character varying(64)", "description": "Order."}},
+      "config": {"materialized": "table", "unique_key": null},
+      "contract": {"enforced": true},
+      "description": "Grain: one row per order_id. Summary.",
+      "meta": {"owner": "data-platform", "sla": {"freshness_minutes": 60}},
+      "name": "mart_order_summary",
+      "original_file_path": "models/marts/mart_order_summary.sql",
+      "resource_type": "model"
+    }
+  }
+}

@@ -4,7 +4,8 @@
 	generate-smoke generate-standard generate-stress inject-bad-events consumer-lag benchmark \
 	benchmark-smoke benchmark-standard benchmark-stress demo \
 	dbt-deps dbt-debug dbt-parse dbt-compile dbt-build dbt-test dbt-source-freshness \
-	dbt-docs data-platform-fixtures test-data-platform
+	dbt-docs data-platform-fixtures test-data-platform dbt-scaffold-smoke \
+	dbt-validate-conventions dbt-contract-check dbt-slim-ci-local
 
 -include .env
 export
@@ -28,6 +29,8 @@ help:
 	@echo "  test / test-unit / test-integration / test-e2e / clean"
 	@echo "  data-platform-fixtures / dbt-deps / dbt-debug / dbt-parse / dbt-compile"
 	@echo "  dbt-build / dbt-test / dbt-source-freshness / dbt-docs / test-data-platform"
+	@echo "  dbt-scaffold-smoke / dbt-validate-conventions / dbt-contract-check"
+	@echo "  dbt-slim-ci-local (state selection, defer, and full fallback evidence)"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -153,3 +156,43 @@ data-platform-fixtures:
 
 test-data-platform:
 	$(PYTHON) -m pytest tests/data_platform
+
+dbt-scaffold-smoke:
+	$(PYTHON) -m pytest tests/data_platform/unit/test_scaffolding.py
+
+dbt-validate-conventions:
+	@phase7_target=$$(mktemp -d); \
+	trap 'rm -rf "$$phase7_target"' EXIT; \
+	$(DBT) parse $(DBT_ARGS) --target-path "$$phase7_target"; \
+	$(PYTHON) scripts/data_platform/validate_dbt_conventions.py \
+		--manifest "$$phase7_target/manifest.json"
+
+dbt-contract-check:
+	$(PYTHON) scripts/data_platform/compare_contracts.py \
+		--previous-manifest tests/data_platform/fixtures/contracts/base_manifest.json \
+		--current-manifest tests/data_platform/fixtures/contracts/base_manifest.json \
+		--previous-git-sha fixture-base --current-git-sha fixture-current \
+		--report reports/data-quality/phase7-contract-fixture-pass.json
+	@set +e; \
+	$(PYTHON) scripts/data_platform/compare_contracts.py \
+		--previous-manifest tests/data_platform/fixtures/contracts/base_manifest.json \
+		--current-manifest tests/data_platform/fixtures/contracts/removed_column_manifest.json \
+		--previous-git-sha fixture-base --current-git-sha fixture-breaking \
+		--report reports/data-quality/phase7-contract-fixture-breaking.json; \
+	status=$$?; \
+	if [ "$$status" -ne 1 ]; then \
+		echo "expected blocking contract comparison exit 1, got $$status"; \
+		exit 1; \
+	fi
+
+dbt-slim-ci-local:
+	PHASE7_SELECTION_EVIDENCE=reports/data-quality/phase7-modified-staging-selection.json \
+		$(PYTHON) -m pytest \
+		tests/data_platform/integration/test_phase7_slim_ci_local.py
+	$(PYTHON) scripts/data_platform/run_slim_ci.py --no-base-state \
+		--run-id local_fallback_$$(date -u +%Y%m%d%H%M%S)_$$$$ \
+		--summary reports/data-quality/phase7-ci-fallback-summary.json \
+		--convention-report reports/data-quality/phase7-fallback-conventions.json \
+		--contract-report reports/data-quality/phase7-fallback-contract-diff.json
+	$(PYTHON) scripts/data_platform/run_slim_ci.py --base-ref HEAD \
+		--run-id local_state_$$(date -u +%Y%m%d%H%M%S)_$$$$

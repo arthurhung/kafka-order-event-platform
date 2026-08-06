@@ -40,3 +40,11 @@ All four published marts enforce dbt contracts. Monetary columns are declared as
 version does not safely render a comma-bearing `numeric(18,2)` type declaration. Model SQL
 still casts source monetary values to `numeric(18,2)`. This preserves decimal semantics, but
 precision and scale are verified through SQL behavior rather than the contract type string.
+
+## Phase 7 scaffold boundary
+
+The scaffold is a draft generator, not a schema inference system. It normalizes model names by
+layer and supplies metadata and contract structure, but it does not select sources, upstream
+models, columns, business keys, monetary semantics, or transformations. Missing decisions stay
+as `BLOCKING_TODO` markers and convention validation fails until a developer replaces them with
+verified definitions. Existing Phase 6 model SQL and contract semantics remain unchanged.

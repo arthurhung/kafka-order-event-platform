@@ -24,3 +24,18 @@ coordinates rather than relying on whole-table counts.
 Integration tests snapshot source identities before and after dbt build, verify that no dbt
 relations appear in `public`, require all four mart tables in the isolated analytics schema,
 and verify an identical fixture run publishes no additional events.
+
+Phase 7 adds three deterministic quality layers. Convention validation reads a freshly parsed
+manifest and checks model placement, naming, grain, ownership, SLO metadata, contracts, column
+documentation, direct source use, wildcard policy, and incomplete scaffold markers. Existing
+intermediate wildcards are warnings; staging and published-mart wildcards are blocking.
+
+Contract comparison reads previous and current manifests. Column/model removal, same-type rename
+candidates, incompatible type changes, nullable-to-required changes, grain/business-key changes,
+contract removal, and required-test removal are blocking. Owner, SLO, materialization,
+incremental-key, and metric-description changes require manual review. The checker explicitly
+does not claim that manifest comparison can prove business-semantic equivalence.
+
+Slim CI evidence records the base/current Git identities, state mode, selected models, command
+exit codes, bounded sanitized output, and report paths. A missing base produces a named full-build
+fallback rather than an empty or falsely successful state selection.

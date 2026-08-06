@@ -1,0 +1,13 @@
+{{ config(materialized='view') }}
+
+-- Scaffold status: draft.
+-- BLOCKING_TODO: replace this draft with explicit source columns and one source() relation.
+with source_data as (
+    select
+        -- BLOCKING_TODO: list, cast, and rename real source columns explicitly.
+        null as scaffold_placeholder
+)
+
+select
+    scaffold_placeholder
+from source_data

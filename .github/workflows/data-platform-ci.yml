@@ -1,0 +1,138 @@
+name: Data Platform CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: streaming
+          POSTGRES_USER: streaming
+          POSTGRES_PASSWORD: streaming
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streaming -d streaming"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: streaming
+      POSTGRES_USER: streaming
+      POSTGRES_PASSWORD: streaming
+      DBT_TARGET: ci
+      DBT_TARGET_SCHEMA: analytics_ci_workflow
+      DBT_THREADS: "4"
+      KAFKA_BOOTSTRAP_SERVERS: localhost:29092
+      KAFKA_EXTERNAL_PORT: "29092"
+      KAFKA_ORDER_TOPIC: ecommerce.orders.raw.v1
+      KAFKA_LOG_TOPIC: ecommerce.application-logs.raw.v1
+      KAFKA_DLQ_TOPIC: ecommerce.dlq.v1
+      KAFKA_ORDER_CONSUMER_GROUP: order-processing-group-v1
+      KAFKA_LOG_CONSUMER_GROUP: application-log-processing-group-v1
+      ORDER_CONSUMER_MAX_RETRIES: "3"
+      ORDER_CONSUMER_RETRY_BASE_SECONDS: "1"
+      ORDER_CONSUMER_RETRY_MAX_SECONDS: "4"
+      ORDER_CONSUMER_POLL_TIMEOUT_SECONDS: "1"
+      ORDER_CONSUMER_DELIVERY_TIMEOUT_SECONDS: "10"
+      LOG_CONSUMER_MAX_RETRIES: "3"
+      LOG_CONSUMER_RETRY_BASE_SECONDS: "1"
+      LOG_CONSUMER_RETRY_MAX_SECONDS: "4"
+      LOG_CONSUMER_POLL_TIMEOUT_SECONDS: "1"
+      LOG_CONSUMER_DELIVERY_TIMEOUT_SECONDS: "10"
+      LOG_CONSUMER_FLUSH_INTERVAL_SECONDS: "0.5"
+      LOG_LEVEL: INFO
+      DATA_PLATFORM_FIXTURE_RUN_ID: phase7-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.14.6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.14.6
+          cache: pip
+
+      - name: Install existing project dependency groups
+        run: python -m pip install -e . --group dev --group data-platform
+
+      - name: Prepare local dbt profile
+        run: cp dbt/profiles.yml.example dbt/profiles.yml
+
+      - name: Start required Kafka service
+        run: |
+          docker compose up -d kafka
+          python scripts/wait_for_services.py
+          make topics
+
+      - name: Migrate and load deterministic fixtures
+        run: |
+          make migrate
+          make data-platform-fixtures
+
+      - name: Verify scaffold and contract policy scenarios
+        run: |
+          make dbt-scaffold-smoke
+          make dbt-contract-check
+
+      - name: Resolve previous revision
+        id: previous
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "ref=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
+          elif [ -n "$PUSH_BEFORE_SHA" ]; then
+            echo "ref=$PUSH_BEFORE_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run state-based Slim CI or explicit fallback
+        env:
+          BASE_REF: ${{ steps.previous.outputs.ref }}
+        run: |
+          if git rev-parse --verify "$BASE_REF^{commit}" >/dev/null 2>&1; then
+            python scripts/data_platform/run_slim_ci.py \
+              --base-ref "$BASE_REF" \
+              --run-id "gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}" \
+              --python-checks
+          else
+            python scripts/data_platform/run_slim_ci.py \
+              --no-base-state \
+              --run-id "gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}" \
+              --python-checks
+          fi
+
+      - name: Upload diagnostic state and reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase7-data-platform-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            reports/data-quality/*.json
+            dbt/target/phase7-ci/**

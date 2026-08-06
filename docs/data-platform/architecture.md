@@ -31,3 +31,23 @@ installation and execution, not from version metadata alone.
 No raw application-log rows exist in PostgreSQL. Service models start from endpoint-level,
 minute aggregates and cannot expose request IDs, client IP analytics, HTTP methods, or
 individual latency distributions.
+
+## Phase 7 developer path
+
+Phase 7 adds deterministic developer tooling around the Phase 6 project without changing its
+models or source ownership:
+
+```text
+draft scaffold -> dbt parse -> convention validation -> contract comparison
+                                                     -> state:modified+ build
+base revision -> isolated base schemas -> manifest --^       |-- defer upstream
+```
+
+The base revision is extracted with read-only Git archive into a temporary directory and built
+in run-specific `analytics_ci_base_*` schemas. Current selected relations use separate
+`analytics_ci_current_*` schemas. Unselected dependencies resolve through dbt defer to the base
+relations. Cleanup is allowlisted to those run-specific prefixes and never matches `public`.
+
+When a base revision cannot be resolved, the runner records `full_ci_fallback` and performs a
+complete current build. State and diagnostic artifacts are written below ignored `dbt/target/`
+and `reports/data-quality/`; existing local artifacts are not treated as previous CI state.

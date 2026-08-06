@@ -5,7 +5,9 @@ transaction、idempotent consumer、bounded retry、DLQ、每分鐘日誌聚合�
 benchmark。它是一個作品集與面試展示專案，不是 production-ready 系統。
 
 Phase 6 已在既有 PostgreSQL sources 上加入本機 dbt data products、contracts、data/unit tests、freshness
-與 generated docs。這不代表 BigQuery、Airflow、GitHub Actions、MCP 或 Agent 已完成。
+與 generated docs。Phase 7 已加入 draft scaffold、deterministic convention/contract checks、dbt state-based
+local Slim CI 與 GitHub Actions workflow。Workflow 定義本身不是遠端執行證據；驗收必須另行檢查
+對應 commit 的 successful GitHub Actions run 與 artifacts。
 
 ## 解決的問題
 
@@ -175,6 +177,10 @@ Kafka UI位於 <http://localhost:8080>。`make topics`與`make migrate`都可安
 | `make dbt-build/dbt-test/dbt-source-freshness` | 建置並驗證PostgreSQL data products |
 | `make dbt-docs` | 產生忽略於Git的dbt文件artifacts |
 | `make test-data-platform` | 執行Phase 6 Python unit/integration tests |
+| `make dbt-scaffold-smoke` | 在temporary directory驗證draft scaffold與no-overwrite行為 |
+| `make dbt-validate-conventions` | 從fresh manifest驗證layer、metadata、docs與SQL conventions |
+| `make dbt-contract-check` | 驗證pass與blocking contract-change scenarios |
+| `make dbt-slim-ci-local` | 驗證modified+／defer selection與明示full fallback |
 
 ## Phase 6 dbt data products
 
@@ -197,6 +203,19 @@ currency分組且沒有FX conversion。Service health以response-time sum除以r
 average，沒有直接平均endpoint averages。PostgreSQL沒有raw application-log rows，因此無法提供request、
 client IP或individual latency analytics。完整定義見[Phase 6 runbook](docs/data-platform/phase-6.md)、
 [modeling semantics](docs/data-platform/modeling.md)與[data quality](docs/data-platform/quality.md)。
+
+## Phase 7 paved road
+
+Model scaffold會正規化`stg_`、`int_`或`mart_`prefix，拒絕覆寫任何既有SQL/YAML，且在不知道
+columns或upstream時只產生帶`BLOCKING_TODO`的draft。Convention validator會阻擋未完成draft、缺少
+mart grain/owner/SLO/contract/column docs、錯誤direct source使用與published wildcard。Contract checker
+比較previous/current manifest，確定的breaking change會non-zero，無法從artifact判定的semantic change
+則標示manual review。
+
+Local Slim CI在隔離`analytics_ci_*`schemas建立base relations，再以dbt原生
+`state:modified+ --defer --state`建置current modified models與downstream。無previous state時明確執行
+full build fallback。詳細操作見[Phase 7 runbook](docs/data-platform/phase-7.md)。Committed workflow尚無真實
+GitHub run evidence，因此目前只能宣稱local implementation complete，不能宣稱Phase 7 accepted。
 
 ## Demo
 
@@ -334,14 +353,14 @@ make test
 
 ## Roadmap
 
-Phase 1～5 Kafka Core與Phase 6 PostgreSQL dbt data products已實作。Phase 7、8A、8B、8C、9與10均未在
-本次工作開始；BigQuery、GCP、Airflow、GitHub Actions、MCP、Codex Skills、Agent與cloud infrastructure
-均不存在。其他post-MVP技術也不在目前實作範圍。
+Phase 1～5 Kafka Core與Phase 6 PostgreSQL dbt data products已實作。Phase 7 implementation已完成；
+最終驗收以對應 commit 的 successful GitHub Actions run 與必要 artifacts為準。後續階段均未開始；
+其他post-MVP技術也不在目前實作範圍。
 
 | Phase | Status |
 |---|---|
 | Phase 6 | implemented |
-| Phase 7 | not started |
+| Phase 7 | implemented; acceptance requires successful GitHub CI evidence |
 | Phase 8A | not started |
 | Phase 8B | optional, not started |
 | Phase 8C | deferred |
