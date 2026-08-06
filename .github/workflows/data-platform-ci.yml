@@ -42,6 +42,7 @@ jobs:
       DBT_THREADS: "4"
       KAFKA_BOOTSTRAP_SERVERS: localhost:29092
       KAFKA_EXTERNAL_PORT: "29092"
+      KAFKA_UI_PORT: "8080"
       KAFKA_ORDER_TOPIC: ecommerce.orders.raw.v1
       KAFKA_LOG_TOPIC: ecommerce.application-logs.raw.v1
       KAFKA_DLQ_TOPIC: ecommerce.dlq.v1
@@ -81,8 +82,7 @@ jobs:
 
       - name: Start required Kafka service
         run: |
-          docker compose up -d kafka
-          python scripts/wait_for_services.py
+          docker compose up -d --wait kafka
           make topics
 
       - name: Migrate and load deterministic fixtures
