@@ -264,7 +264,7 @@ jobs:
           make dbt-build
           make dbt-source-freshness
           make dbt-docs
-          make consumer-lag FORMAT=json > reports/consumer-lag.json
+          make --no-print-directory -s consumer-lag FORMAT=json > reports/consumer-lag.json
 
       - name: Generate prerequisite local evidence adapters
         run: |
