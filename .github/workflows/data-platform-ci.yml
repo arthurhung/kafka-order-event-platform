@@ -347,6 +347,7 @@ jobs:
       LOG_CONSUMER_DELIVERY_TIMEOUT_SECONDS: "10"
       LOG_CONSUMER_FLUSH_INTERVAL_SECONDS: "0.5"
       LOG_LEVEL: INFO
+      BENCHMARK_INFRASTRUCTURE_MODE: preprovisioned
       DATA_PLATFORM_FIXTURE_RUN_ID: phase10-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
@@ -387,7 +388,7 @@ jobs:
           make phase10-ci
           make lint
           make typecheck
-          make test
+          DBT_TARGET=local DBT_TARGET_SCHEMA=analytics_local make test
 
       - name: Collect allowlisted Phase 10 diagnostics
         if: always()
