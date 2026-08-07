@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -12,10 +13,30 @@ from data_platform.mcp_client import (
 )
 
 
-def test_incident_client_uses_real_phase9_stdio_transport():
+def _metadata_source_root(root: Path, tmp_path: Path) -> Path:
+    if (root / "dbt/target/manifest.json").is_file():
+        return root
+    slim_manifests = sorted(
+        (root / "dbt/target/phase7-ci").glob("*/current/manifest.json")
+    )
+    assert slim_manifests, "a dbt manifest is required for the Phase 9 transport test"
+    isolated_root = tmp_path / "metadata-source"
+    shutil.copytree(slim_manifests[-1].parent, isolated_root / "dbt/target")
+    return isolated_root
+
+
+def test_incident_client_uses_real_phase9_stdio_transport(tmp_path: Path) -> None:
     root = Path.cwd()
-    subprocess.run(
-        [sys.executable, "scripts/data_platform/build_metadata_index.py"],
+    metadata_source = _metadata_source_root(root, tmp_path)
+    subprocess.run(  # noqa: S603 - fixed repository Python entrypoint
+        [
+            sys.executable,
+            "scripts/data_platform/build_metadata_index.py",
+            "--repository-root",
+            str(metadata_source),
+            "--output-dir",
+            str(root / "reports/metadata"),
+        ],
         cwd=root,
         check=True,
         capture_output=True,
@@ -29,7 +50,9 @@ def test_incident_client_uses_real_phase9_stdio_transport():
     assert result["data"]["matches"]
 
 
-def test_client_rejects_duplicate_or_malformed_tool_surface(monkeypatch):
+def test_client_rejects_duplicate_or_malformed_tool_surface(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     process = Mock()
     process.stdin = Mock()
     process.wait.return_value = 0
@@ -56,7 +79,7 @@ def test_client_rejects_duplicate_or_malformed_tool_surface(monkeypatch):
     process.stdin.close.assert_called_once()
 
 
-def test_client_kills_server_when_graceful_and_terminate_time_out():
+def test_client_kills_server_when_graceful_and_terminate_time_out() -> None:
     process = Mock()
     process.stdin = Mock()
     process.wait.side_effect = (
