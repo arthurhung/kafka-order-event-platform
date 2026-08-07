@@ -32,3 +32,6 @@ reports/cost/*.json
 reports/consumer-lag.json
 reports/metadata/
 reports/metadata-ci/
+reports/skills/
+reports/incidents/
+reports/phase10-ci/

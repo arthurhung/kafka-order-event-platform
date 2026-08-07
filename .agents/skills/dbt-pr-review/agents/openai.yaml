@@ -1,0 +1,4 @@
+interface:
+  display_name: "dbt PR Review"
+  short_description: "Review dbt changes with deterministic policy checks"
+  default_prompt: "Use $dbt-pr-review to review dbt changes and produce deterministic findings."

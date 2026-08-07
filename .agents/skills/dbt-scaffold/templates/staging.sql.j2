@@ -1,0 +1,9 @@
+with source_data as (
+    select
+        {{ COLUMNS }}
+    from {{ SQL_UPSTREAM_RELATION }}
+)
+
+select
+    {{ COLUMNS }}
+from source_data

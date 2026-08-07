@@ -10,6 +10,8 @@ Slim CI已由指定commit的GitHub Actions run接受。Phase 8A加入本機BigQu
 partition/cluster/SQL policies、fixture cost guardrails與純Python orchestration contract；它沒有執行
 BigQuery，也不是BigQuery runtime acceptance。Phase 9新增deterministic metadata/lineage index與本機
 read-only STDIO MCP tools；缺少Sandbox、Cloud或Airflow evidence會明確回傳`not_available`。
+Phase 10新增三個repository-local Codex Skills與唯讀、evidence-based incident diagnosis；它透過Phase 9
+restricted STDIO adapter查證，不提供autonomous production mutation、pipeline rerun或Kafka offset reset。
 
 ## 解決的問題
 
@@ -60,6 +62,8 @@ migrations/            Alembic schema migration
 scripts/               topic bootstrap, readiness, lag and Kafka smoke tools
 dbt/                   PostgreSQL source, staging, intermediate and mart models
 src/data_platform/     deterministic Phase 6 fixture support
+.agents/skills/         Phase 10 dbt scaffold/review與incident diagnosis Skills
+apps/incident_agent/    唯讀incident workflow composition root
 tests/unit/             isolated deterministic logic
 tests/integration/      real Kafka/PostgreSQL integration behavior
 tests/e2e/              executable process and recovery flows
@@ -191,6 +195,11 @@ Kafka UI位於 <http://localhost:8080>。`make topics`與`make migrate`都可安
 | `make metadata-index/metadata-validate` | 建立並驗證deterministic Phase 9 index與lineage |
 | `make mcp-server/mcp-smoke/test-mcp` | 啟動本機STDIO server並驗證唯讀tools、安全與audit |
 | `make validate-phase9/phase9-ci` | 重跑Phase 9本機completion path |
+| `make skill-dbt-scaffold-smoke` | 以真實STDIO metadata在temporary output驗證原子、deterministic scaffold |
+| `make skill-dbt-pr-review-smoke` | 驗證normal、warning/degraded與blocking deterministic findings |
+| `make skill-incident-diagnosis-smoke` | 驗證四種fixture-based incident scenarios（simulated） |
+| `make incident-demo` | 經Phase 9 restricted STDIO執行唯讀本機incident demo |
+| `make test-skills/phase10-ci` | 執行Phase 10 unit、transport integration與local CI gate |
 
 ## Phase 6 dbt data products
 
@@ -260,7 +269,32 @@ make test-mcp
 若catalog、freshness、lag或optional report缺少，index/tool會列出`degraded`或`not_available`，不會捏造
 空成功。Phase 8A cost fixture只可回`simulated`；Phase 8B/8C尚未開始，因此Sandbox/Cloud evidence不可用。
 Codex設定、schema、exit codes、CI與SDK相容性決策見
-[Phase 9 runbook](docs/data-platform/phase-9.md)。Phase 10尚未開始。
+[Phase 9 runbook](docs/data-platform/phase-9.md)。Phase 9已accepted。
+
+## Phase 10 Codex Skills and incident diagnosis
+
+Repository-local Skills位於`.agents/skills/dbt-scaffold`、`.agents/skills/dbt-pr-review`與
+`.agents/skills/incident-diagnosis`。Scaffold先經Phase 9 metadata驗證真實columns，拒絕fake source、
+missing column、path traversal與overwrite，再原子產生SQL/YAML/tests。PR review以deterministic rules優先，
+contract column removal/type change固定為blocking；baseline或lineage缺失會標示degraded，不會被當成安全。
+
+Incident workflow會實際啟動既有Phase 9 restricted STDIO server並執行`initialize`、`tools/list`、
+`tools/call`。它區分confirmed facts、hypotheses、unknowns與rejected hypotheses，並分類
+`static_validation`、`simulated`、`local_execution`、`sandbox_observed`、`cloud_observed`與
+`not_available` evidence。Phase 8B/8C未完成時cloud evidence unavailable不是cloud failure，也不阻擋
+本機Phase 10。沒有public MCP server、付費API或OpenAI API key需求。
+
+Sample prompts：
+
+- `Use $dbt-scaffold to create a mart from verified order metadata with grain one row per order_id.`
+- `Use $dbt-pr-review to review these dbt changes for contracts, grain, tests, lineage, and cost risks.`
+- `Use $incident-diagnosis to investigate this freshness alert and produce a read-only evidence report.`
+
+第一版只query、inspect、correlate、analyze、summarize與產生供人工review的remediation/backfill/validation
+plans。它不會自動改schema/data/IAM、rerun pipeline、reset Kafka offsets、merge/deploy或acknowledge
+production incident。完整操作、fixtures、report schema與限制見
+[Phase 10 runbook](docs/data-platform/phase-10.md)。本專案不是production-ready，也不是production
+autonomous agent。
 
 ## Demo
 
@@ -398,8 +432,8 @@ make test
 
 ## Roadmap
 
-Phase 1～7與Phase 8A已accepted。Phase 9本機實作與驗收命令已完成，GitHub Actions evidence需在本次
-變更進入remote workflow後觀察；optional cloud階段與Phase 10均未開始。
+Phase 1～7、Phase 8A與Phase 9已accepted。Phase 10本機實作與驗證完成後仍需final review與remote CI
+evidence才能accepted；optional cloud階段未開始。
 
 | Phase | Status |
 |---|---|
@@ -408,8 +442,8 @@ Phase 1～7與Phase 8A已accepted。Phase 9本機實作與驗收命令已完成�
 | Phase 8A | accepted |
 | Phase 8B | optional, not started |
 | Phase 8C | deferred |
-| Phase 9 | implementation complete; remote GitHub CI evidence pending |
-| Phase 10 | not started |
+| Phase 9 | accepted |
+| Phase 10 | implementation complete; acceptance pending local completion gate and remote CI review |
 
 ## 面試展示重點
 

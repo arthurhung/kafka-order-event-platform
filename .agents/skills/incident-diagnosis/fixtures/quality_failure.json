@@ -1,0 +1,13 @@
+{
+  "alert": {"alert_type": "quality", "asset": "fct_orders", "incident_id": "INC-QUALITY-001", "message": "Uniqueness test failed.", "observed_at": "2026-08-07T10:00:00Z", "severity": "high"},
+  "responses": {
+    "get_consumer_lag": {"data": {"partitions": [{"lag": 0}]}, "evidence": ["lag-report"], "evidence_level": "local_execution", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "get_cost_estimate": {"data": {"estimated_bytes": 1048576}, "evidence": ["cost-fixture"], "evidence_level": "simulated", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "get_downstream_impact": {"data": {"impacted_assets": ["model.retail_data_platform.mart_daily_sales"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "get_model_owner": {"data": {"owner": "data-platform"}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "get_quality_status": {"data": {"freshness": "pass", "overall_status": "fail", "stale_artifact_warning": false}, "evidence": ["quality"], "evidence_level": "static_validation", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "get_recent_pipeline_failures": {"data": {"failures": []}, "evidence": ["pipeline-run"], "evidence_level": "local_execution", "generated_at": "2026-08-07T09:58:00Z", "status": "ok", "warnings": []},
+    "get_upstream_lineage": {"data": {"upstream_nodes": ["model.retail_data_platform.int_order_latest_state"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []},
+    "search_data_assets": {"data": {"matches": [{"name": "fct_orders"}]}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T09:59:00Z", "status": "ok", "warnings": []}
+  }
+}

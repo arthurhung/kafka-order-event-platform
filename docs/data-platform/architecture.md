@@ -1,5 +1,10 @@
 # Phase 6 Data Platform Architecture
 
+Phase 10 adds a Codex AI harness above Phase 9: repository-local `dbt-scaffold`, `dbt-pr-review`, and
+`incident-diagnosis` Skills use deterministic helpers and the restricted local STDIO adapter. The
+incident composition root is read-only and produces evidence reports and human-review plans; it has
+no production mutation interface. See `phase-10.md` for the state machine and transport boundary.
+
 Phase 6 adds a local PostgreSQL dbt project without changing the Kafka Core. The three
 `public` relations remain read-only sources and dbt writes only to schemas derived from
 `DBT_TARGET_SCHEMA`:

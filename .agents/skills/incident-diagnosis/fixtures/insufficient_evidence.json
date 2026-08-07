@@ -1,0 +1,13 @@
+{
+  "alert": {"alert_type": "freshness", "asset": "mart_service_health", "incident_id": "INC-DEGRADED-001", "message": "Freshness evidence is incomplete.", "observed_at": "2026-08-07T11:00:00Z", "severity": "medium"},
+  "responses": {
+    "get_consumer_lag": {"data": {}, "evidence": ["stale-lag"], "evidence_level": "static_validation", "generated_at": "2026-08-05T11:00:00Z", "status": "partial", "warnings": ["stale"]},
+    "get_cost_estimate": {"data": {"estimated_bytes": null}, "evidence": [], "evidence_level": "not_available", "generated_at": "2026-08-07T11:00:00Z", "status": "not_available", "warnings": ["cloud unavailable"]},
+    "get_downstream_impact": {"data": {"impacted_assets": []}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T11:00:00Z", "status": "partial", "warnings": ["catalog missing"]},
+    "get_model_owner": {"data": {"owner": "data-platform"}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T11:00:00Z", "status": "ok", "warnings": []},
+    "get_quality_status": {"data": {"overall_status": "unknown", "stale_artifact_warning": true}, "evidence": ["quality"], "evidence_level": "static_validation", "generated_at": "2026-08-05T11:00:00Z", "status": "partial", "warnings": ["partial"]},
+    "get_recent_pipeline_failures": {"data": {}, "evidence": [], "evidence_level": "not_available", "generated_at": "2026-08-07T11:00:00Z", "status": "not_available", "warnings": ["artifact missing"]},
+    "get_upstream_lineage": {"data": {"upstream_nodes": []}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T11:00:00Z", "status": "partial", "warnings": ["catalog missing"]},
+    "search_data_assets": {"data": {"matches": [{"name": "mart_service_health"}]}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T11:00:00Z", "status": "ok", "warnings": []}
+  }
+}

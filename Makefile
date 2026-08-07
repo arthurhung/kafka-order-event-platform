@@ -10,7 +10,8 @@
 	bigquery-cost-report test-bigquery-policy data-platform-phase8a-local \
 	phase8a-orchestration-validate test-phase8a-orchestration \
 	metadata-index metadata-validate mcp-server mcp-smoke test-mcp test-phase9 \
-	validate-phase9 phase9-ci
+	validate-phase9 phase9-ci skill-dbt-scaffold-smoke skill-dbt-pr-review-smoke \
+	skill-incident-diagnosis-smoke incident-demo test-skills phase10-ci
 
 -include .env
 export
@@ -41,6 +42,8 @@ help:
 	@echo "  phase8a-orchestration-validate / test-phase8a-orchestration"
 	@echo "  metadata-index / metadata-validate / mcp-server / mcp-smoke / test-mcp"
 	@echo "  test-phase9 / validate-phase9 / phase9-ci (local-only Phase 9 gate)"
+	@echo "  skill-dbt-scaffold-smoke / skill-dbt-pr-review-smoke"
+	@echo "  skill-incident-diagnosis-smoke / incident-demo / test-skills / phase10-ci"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -276,3 +279,26 @@ validate-phase9: metadata-index metadata-validate mcp-smoke test-mcp
 
 phase9-ci: validate-phase9
 	$(PYTHON) scripts/data_platform/write_phase9_evidence.py
+
+skill-dbt-scaffold-smoke:
+	@$(PYTHON) scripts/data_platform/build_metadata_index.py >/dev/null
+	@$(PYTHON) scripts/data_platform/run_phase10.py scaffold-smoke
+
+skill-dbt-pr-review-smoke:
+	@$(PYTHON) scripts/data_platform/run_phase10.py review-smoke
+
+skill-incident-diagnosis-smoke:
+	@$(PYTHON) scripts/data_platform/run_phase10.py incident-smoke
+
+incident-demo:
+	@$(PYTHON) scripts/data_platform/build_metadata_index.py >/dev/null
+	@$(PYTHON) scripts/data_platform/run_phase10.py incident-demo
+
+test-skills:
+	@$(PYTHON) scripts/data_platform/build_metadata_index.py >/dev/null
+	$(PYTHON) -m pytest tests/data_platform/unit/test_phase10_*.py \
+		tests/data_platform/integration/test_phase10_mcp_stdio.py
+
+phase10-ci: skill-dbt-scaffold-smoke skill-dbt-pr-review-smoke \
+	skill-incident-diagnosis-smoke incident-demo test-skills test-mcp
+	@$(PYTHON) scripts/data_platform/run_phase10.py summary

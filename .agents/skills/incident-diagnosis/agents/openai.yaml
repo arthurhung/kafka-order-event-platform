@@ -1,0 +1,4 @@
+interface:
+  display_name: "Incident Diagnosis"
+  short_description: "Diagnose data incidents from read-only MCP evidence"
+  default_prompt: "Use $incident-diagnosis to diagnose a data incident from read-only MCP evidence."

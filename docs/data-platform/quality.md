@@ -1,5 +1,11 @@
 # Phase 6 Data Quality
 
+Phase 10 preserves deterministic quality gates. Scaffold cannot invent a column, PR review cannot
+override a blocking contract finding, and incident facts require evidence IDs. Partial, stale, or
+missing required artifacts produce degraded diagnosis; unavailable optional cloud evidence remains
+distinct from failure. Four fixed scenarios cover pipeline freshness, Kafka lag, quality failure,
+and insufficient evidence.
+
 The project applies source, staging, intermediate, mart, singular, and dbt unit tests.
 Coverage includes primary/composite uniqueness, required values, accepted event types,
 conditional payload nullability, positive quantity, non-negative money and metrics, status

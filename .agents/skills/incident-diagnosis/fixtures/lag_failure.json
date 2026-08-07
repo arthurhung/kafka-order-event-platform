@@ -1,0 +1,13 @@
+{
+  "alert": {"alert_type": "consumer_lag", "asset": "stg_order_events", "incident_id": "INC-LAG-001", "message": "Source freshness is stale while dbt completed.", "observed_at": "2026-08-07T09:00:00Z", "severity": "high"},
+  "responses": {
+    "get_consumer_lag": {"data": {"partitions": [{"lag": 420}, {"lag": 210}]}, "evidence": ["lag-report"], "evidence_level": "local_execution", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []},
+    "get_cost_estimate": {"data": {"estimated_bytes": null}, "evidence": [], "evidence_level": "not_available", "generated_at": "2026-08-07T08:59:00Z", "status": "not_available", "warnings": ["cloud unavailable"]},
+    "get_downstream_impact": {"data": {"impacted_assets": ["model.retail_data_platform.fct_orders", "model.retail_data_platform.mart_daily_sales"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []},
+    "get_model_owner": {"data": {"owner": "data-platform"}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []},
+    "get_quality_status": {"data": {"freshness": "fail", "overall_status": "pass", "stale_artifact_warning": false}, "evidence": ["quality"], "evidence_level": "static_validation", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []},
+    "get_recent_pipeline_failures": {"data": {"failures": []}, "evidence": ["pipeline-run"], "evidence_level": "local_execution", "generated_at": "2026-08-07T08:58:00Z", "status": "ok", "warnings": []},
+    "get_upstream_lineage": {"data": {"upstream_nodes": ["source.retail_data_platform.valid_orders"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []},
+    "search_data_assets": {"data": {"matches": [{"name": "stg_order_events"}]}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T08:59:00Z", "status": "ok", "warnings": []}
+  }
+}

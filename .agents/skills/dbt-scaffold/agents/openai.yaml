@@ -1,0 +1,4 @@
+interface:
+  display_name: "dbt Scaffold"
+  short_description: "Generate validated dbt models from repository metadata"
+  default_prompt: "Use $dbt-scaffold to generate a validated dbt model from verified repository metadata."

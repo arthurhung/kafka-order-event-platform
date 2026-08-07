@@ -1,0 +1,14 @@
+{
+  "business_requirement": "Expose verified order event columns for a temporary smoke model.",
+  "domain": "commerce",
+  "expected_consumers": ["phase10-smoke"],
+  "freshness_minutes": 60,
+  "generated_at": "2026-08-07T12:00:00Z",
+  "grain": "one row per event_id",
+  "layer": "intermediate",
+  "model_name": "int_phase10_reserved_smoke",
+  "owner": "data-platform",
+  "required_metrics": [],
+  "selected_columns": ["event_id", "order_id"],
+  "upstream_model": "stg_order_events"
+}

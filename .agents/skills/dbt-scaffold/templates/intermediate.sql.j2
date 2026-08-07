@@ -1,0 +1,9 @@
+with upstream as (
+    select
+        {{ COLUMNS }}
+    from {{ SQL_UPSTREAM_RELATION }}
+)
+
+select
+    {{ COLUMNS }}
+from upstream

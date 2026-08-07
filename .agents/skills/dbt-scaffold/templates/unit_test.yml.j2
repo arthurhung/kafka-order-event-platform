@@ -1,0 +1,10 @@
+version: 2
+
+unit_tests:
+  - name: unit_{{ MODEL_NAME }}_verified_columns
+    model: {{ MODEL_NAME }}
+    given:
+      - input: {{ UNIT_TEST_INPUT }}
+        rows: []
+    expect:
+      rows: []

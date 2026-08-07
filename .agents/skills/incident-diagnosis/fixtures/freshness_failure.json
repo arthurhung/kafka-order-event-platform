@@ -1,0 +1,20 @@
+{
+  "alert": {
+    "alert_type": "freshness",
+    "asset": "mart_daily_sales",
+    "incident_id": "INC-FRESHNESS-001",
+    "message": "Data freshness exceeded the configured SLO.",
+    "observed_at": "2026-08-07T08:00:00Z",
+    "severity": "high"
+  },
+  "responses": {
+    "get_consumer_lag": {"data": {"partitions": [{"lag": 0}]}, "evidence": ["lag-report"], "evidence_level": "local_execution", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "get_cost_estimate": {"data": {"estimated_bytes": 1048576}, "evidence": ["cost-fixture"], "evidence_level": "simulated", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "get_downstream_impact": {"data": {"impacted_assets": ["model.retail_data_platform.executive_sales"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "get_model_owner": {"data": {"owner": "data-platform", "slo": {"freshness_minutes": 60}}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "get_quality_status": {"data": {"freshness": "fail", "overall_status": "fail", "stale_artifact_warning": false}, "evidence": ["quality"], "evidence_level": "static_validation", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "get_recent_pipeline_failures": {"data": {"failures": [{"task": "dbt_build", "status": "failed"}]}, "evidence": ["pipeline-run"], "evidence_level": "local_execution", "generated_at": "2026-08-07T07:58:00Z", "status": "ok", "warnings": []},
+    "get_upstream_lineage": {"data": {"upstream_nodes": ["model.retail_data_platform.stg_order_events"]}, "evidence": ["lineage"], "evidence_level": "static_validation", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []},
+    "search_data_assets": {"data": {"matches": [{"name": "mart_daily_sales"}]}, "evidence": ["manifest"], "evidence_level": "static_validation", "generated_at": "2026-08-07T07:59:00Z", "status": "ok", "warnings": []}
+  }
+}
