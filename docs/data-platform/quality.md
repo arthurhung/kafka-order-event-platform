@@ -1,4 +1,4 @@
-# Phase 6 Data Quality
+# Data Platform Quality — Phase 6～10
 
 Phase 10 preserves deterministic quality gates. Scaffold cannot invent a column, PR review cannot
 override a blocking contract finding, and incident facts require evidence IDs. Partial, stale, or
