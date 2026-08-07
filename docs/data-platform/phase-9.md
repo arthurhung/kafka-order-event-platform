@@ -155,7 +155,8 @@ requires a separately compatible Python environment or available binary wheels.
 
 Phase 9 is metadata discovery, not production observability. A report older than 24 hours is flagged
 stale, history is unavailable unless an indexed history artifact exists, and missing lag never
-triggers a live Kafka fallback. Phase 10 Skills and incident reasoning are not implemented.
+triggers a live Kafka fallback. Phase 10 Skills and incident reasoning consume this layer without
+expanding its read-only tool surface; see `phase-10.md`.
 
 ## Acceptance boundary
 
