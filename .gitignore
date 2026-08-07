@@ -29,3 +29,6 @@ dbt/.user.yml
 reports/data-quality/*.json
 reports/data-quality/phase8a/
 reports/cost/*.json
+reports/consumer-lag.json
+reports/metadata/
+reports/metadata-ci/

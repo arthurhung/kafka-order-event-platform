@@ -59,3 +59,11 @@ metadata and bounded query fixtures, evaluates fixed cost fixtures, records poli
 a pure-Python orchestration contract to propagate quality-gate failures. Its GitHub Actions job runs
 after but does not alter the Phase 7 job. No BigQuery adapter, GCP provider, cloud task, or production
 scheduler is part of this path.
+
+## Phase 9 metadata discovery path
+
+Phase 9 reads fixed dbt, quality, contract, orchestration, lag, cost, and benchmark artifacts into a
+deterministic asset/evidence index and lineage graph. A local STDIO MCP adapter exposes only bounded,
+read-only metadata tools. It never reads source rows or invokes SQL, shell, pipeline, schema, or Kafka
+mutation interfaces. Missing optional cloud artifacts degrade individual responses without disabling
+the PostgreSQL/dbt metadata path. Phase 10 reasoning and Skills remain outside this layer.

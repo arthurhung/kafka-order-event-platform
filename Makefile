@@ -8,7 +8,9 @@
 	dbt-validate-conventions dbt-contract-check dbt-slim-ci-local \
 	bigquery-static-validate bigquery-partition-policy bigquery-cost-policy \
 	bigquery-cost-report test-bigquery-policy data-platform-phase8a-local \
-	phase8a-orchestration-validate test-phase8a-orchestration
+	phase8a-orchestration-validate test-phase8a-orchestration \
+	metadata-index metadata-validate mcp-server mcp-smoke test-mcp test-phase9 \
+	validate-phase9 phase9-ci
 
 -include .env
 export
@@ -37,6 +39,8 @@ help:
 	@echo "  bigquery-static-validate / bigquery-partition-policy / bigquery-cost-policy"
 	@echo "  bigquery-cost-report / test-bigquery-policy / data-platform-phase8a-local"
 	@echo "  phase8a-orchestration-validate / test-phase8a-orchestration"
+	@echo "  metadata-index / metadata-validate / mcp-server / mcp-smoke / test-mcp"
+	@echo "  test-phase9 / validate-phase9 / phase9-ci (local-only Phase 9 gate)"
 
 up:
 	docker compose up -d kafka postgres kafka-ui
@@ -246,3 +250,29 @@ test-phase8a-orchestration:
 data-platform-phase8a-local:
 	$(PYTHON) scripts/data_platform/run_phase8a_validation.py \
 		--run-id local_$$(date -u +%Y%m%d%H%M%S)_$$$$
+
+metadata-index:
+	$(PYTHON) scripts/data_platform/build_metadata_index.py
+
+metadata-validate:
+	$(PYTHON) scripts/data_platform/validate_metadata.py \
+		--report reports/metadata/metadata-validation-report.json
+
+mcp-server:
+	$(PYTHON) scripts/data_platform/run_mcp_server.py
+
+mcp-smoke:
+	$(PYTHON) scripts/data_platform/mcp_smoke.py \
+		--report reports/metadata/mcp-smoke-report.json
+
+test-mcp:
+	$(PYTHON) -m pytest tests/data_platform/unit/test_metadata_*.py \
+		tests/data_platform/unit/test_phase9_*.py \
+		tests/data_platform/integration/test_phase9_local.py
+
+test-phase9: test-mcp
+
+validate-phase9: metadata-index metadata-validate mcp-smoke test-mcp
+
+phase9-ci: validate-phase9
+	$(PYTHON) scripts/data_platform/write_phase9_evidence.py

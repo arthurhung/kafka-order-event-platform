@@ -45,3 +45,9 @@ orchestration gates. Manifest and SQL-policy evidence is `static_validation`; fi
 are `simulated`. Missing estimates remain null. Unsupported cloud providers return `not_available`,
 and any blocking result prevents a passed aggregate summary. Existing intermediate wildcard
 warnings and the Phase 7 contract/Slim CI report semantics remain unchanged.
+
+Phase 9 validates artifact object structure, normalized Pydantic schemas, cross-file lineage nodes and
+edges, deterministic sorting, MCP input/output envelopes, bounded traversal, timeout, redaction, and
+audit records. A present malformed mandatory artifact is blocking. A missing non-manifest input is
+explicitly degraded rather than silently treated as current or successful. Cost evidence selection
+never falls back across simulated, Sandbox, or Cloud classifications.

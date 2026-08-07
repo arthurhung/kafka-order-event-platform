@@ -8,7 +8,8 @@ Phase 6 已在既有 PostgreSQL sources 上加入本機 dbt data products、cont
 與 generated docs。Phase 7 的 draft scaffold、deterministic convention/contract checks與dbt state-based
 Slim CI已由指定commit的GitHub Actions run接受。Phase 8A加入本機BigQuery compatibility metadata、
 partition/cluster/SQL policies、fixture cost guardrails與純Python orchestration contract；它沒有執行
-BigQuery，也不是BigQuery runtime acceptance。
+BigQuery，也不是BigQuery runtime acceptance。Phase 9新增deterministic metadata/lineage index與本機
+read-only STDIO MCP tools；缺少Sandbox、Cloud或Airflow evidence會明確回傳`not_available`。
 
 ## 解決的問題
 
@@ -187,6 +188,9 @@ Kafka UI位於 <http://localhost:8080>。`make topics`與`make migrate`都可安
 | `make test-bigquery-policy` | 執行metadata、SQL、cost、provider與policy-diff tests |
 | `make phase8a-orchestration-validate` | 驗證Airflow runtime為not_available時的本機orchestration contract |
 | `make data-platform-phase8a-local` | 產生run-specific Phase 8A reports與summary |
+| `make metadata-index/metadata-validate` | 建立並驗證deterministic Phase 9 index與lineage |
+| `make mcp-server/mcp-smoke/test-mcp` | 啟動本機STDIO server並驗證唯讀tools、安全與audit |
+| `make validate-phase9/phase9-ci` | 重跑Phase 9本機completion path |
 
 ## Phase 6 dbt data products
 
@@ -236,6 +240,27 @@ Cost reports只使用固定fixture，`evidence_level=simulated`、
 [Phase 8A runbook](docs/data-platform/phase-8a.md)。No GCP credentials were used. No Billing account was
 required. No BigQuery query or dry run was executed. Fixture estimates are not BigQuery optimizer
 results.
+
+## Phase 9 metadata and MCP
+
+Phase 9只讀取allowlisted dbt與machine-readable reports，產生忽略於Git的
+`reports/metadata/metadata-index.json`、`lineage-graph.json`與`index-summary.json`。十個MCP tools支援
+asset搜尋、schema/owner、bounded lineage/impact、quality、pipeline failures、consumer lag與cost evidence。
+所有input/output都有Pydantic schema；response受timeout與size限制，secret會redact，call會寫入sanitized
+JSONL audit。Server只使用STDIO，不建立public listener，也不提供SQL、shell、filesystem write、pipeline
+rerun、schema mutation或offset reset。
+
+```bash
+make metadata-index
+make metadata-validate
+make mcp-smoke
+make test-mcp
+```
+
+若catalog、freshness、lag或optional report缺少，index/tool會列出`degraded`或`not_available`，不會捏造
+空成功。Phase 8A cost fixture只可回`simulated`；Phase 8B/8C尚未開始，因此Sandbox/Cloud evidence不可用。
+Codex設定、schema、exit codes、CI與SDK相容性決策見
+[Phase 9 runbook](docs/data-platform/phase-9.md)。Phase 10尚未開始。
 
 ## Demo
 
@@ -373,17 +398,17 @@ make test
 
 ## Roadmap
 
-Phase 1～7已accepted。Phase 8A本機實作完成，仍等待本次變更的GitHub Actions evidence；後續與optional
-cloud階段均未開始。其他post-MVP技術也不在目前實作範圍。
+Phase 1～7與Phase 8A已accepted。Phase 9本機實作與驗收命令已完成，GitHub Actions evidence需在本次
+變更進入remote workflow後觀察；optional cloud階段與Phase 10均未開始。
 
 | Phase | Status |
 |---|---|
 | Phase 6 | implemented |
 | Phase 7 | accepted; successful GitHub CI evidence observed for `6e694ad` |
-| Phase 8A | local implementation complete; GitHub CI evidence pending |
+| Phase 8A | accepted |
 | Phase 8B | optional, not started |
 | Phase 8C | deferred |
-| Phase 9 | not started |
+| Phase 9 | implementation complete; remote GitHub CI evidence pending |
 | Phase 10 | not started |
 
 ## 面試展示重點

@@ -187,3 +187,103 @@ jobs:
           path: |
             reports/data-quality/phase8a/**
             dbt/target/phase8a/**
+
+  phase9:
+    needs: [phase7, phase8a]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: streaming
+          POSTGRES_USER: streaming
+          POSTGRES_PASSWORD: streaming
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streaming -d streaming"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: streaming
+      POSTGRES_USER: streaming
+      POSTGRES_PASSWORD: streaming
+      DBT_TARGET: ci
+      DBT_TARGET_SCHEMA: analytics_ci_phase9
+      DBT_THREADS: "4"
+      KAFKA_BOOTSTRAP_SERVERS: localhost:29092
+      KAFKA_EXTERNAL_PORT: "29092"
+      KAFKA_UI_PORT: "8080"
+      KAFKA_ORDER_TOPIC: ecommerce.orders.raw.v1
+      KAFKA_LOG_TOPIC: ecommerce.application-logs.raw.v1
+      KAFKA_DLQ_TOPIC: ecommerce.dlq.v1
+      KAFKA_ORDER_CONSUMER_GROUP: order-processing-group-v1
+      KAFKA_LOG_CONSUMER_GROUP: application-log-processing-group-v1
+      BENCHMARK_INFRASTRUCTURE_MODE: preprovisioned
+      DATA_PLATFORM_FIXTURE_RUN_ID: phase9-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.14.6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.14.6
+          cache: pip
+
+      - name: Install local data-platform dependencies
+        run: python -m pip install -e . --group dev --group data-platform
+
+      - name: Prepare local dbt and Kafka inputs
+        run: |
+          cp dbt/profiles.yml.example dbt/profiles.yml
+          docker compose up -d --wait kafka
+          make topics
+          make migrate
+          make data-platform-fixtures
+          make dbt-deps
+          make dbt-build
+          make dbt-source-freshness
+          make dbt-docs
+          make consumer-lag FORMAT=json > reports/consumer-lag.json
+
+      - name: Generate prerequisite local evidence adapters
+        run: |
+          python scripts/data_platform/run_slim_ci.py \
+            --no-base-state \
+            --run-id "phase9_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          python scripts/data_platform/run_phase8a_validation.py \
+            --run-id "phase9_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+
+      - name: Run Phase 9 metadata and MCP gate
+        run: make phase9-ci
+
+      - name: Collect run-specific Phase 9 diagnostics
+        if: always()
+        run: |
+          diagnostic_dir="reports/metadata-ci/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$diagnostic_dir"
+          for report in metadata-index.json lineage-graph.json index-summary.json \
+            metadata-validation-report.json mcp-smoke-report.json security-report.json \
+            phase9-ci-summary.json mcp-audit.jsonl; do
+            if [ -f "reports/metadata/$report" ]; then
+              cp "reports/metadata/$report" "$diagnostic_dir/$report"
+            fi
+          done
+
+      - name: Upload Phase 9 diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase9-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            reports/metadata-ci/**
