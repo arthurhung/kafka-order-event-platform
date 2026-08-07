@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -13,6 +14,13 @@ from data_platform.mcp_client import (
 
 def test_incident_client_uses_real_phase9_stdio_transport():
     root = Path.cwd()
+    subprocess.run(
+        [sys.executable, "scripts/data_platform/build_metadata_index.py"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     assert (root / "reports/metadata/metadata-index.json").is_file()
     with RestrictedStdioMcpClient(root) as client:
         assert len(client.tool_names) == 10
